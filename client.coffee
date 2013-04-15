@@ -60,7 +60,11 @@ class Client
   # description's directory.
   create_directory: (directory, constructors) ->
     for key, options of directory
-      if constructors[options.resource]
+      if options.constructor == String
+        # FIXME: This is here for temporary backwards compatibility while
+        # reworking the service to provide the right directory format
+        @resources[key] = new constructors[key](url: options)
+      else if constructors[options.resource]
         if options.url
           # The API has provided a URL for this resource, so we do not have to
           # generate it.  This is the expected case for directories coming
