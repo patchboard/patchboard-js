@@ -1,5 +1,5 @@
-#$:.unshift "/Users/mking/projects/oss/starter/lib"
 require "starter/tasks/npm"
+require "starter/tasks/git"
 
 desc "Run tests"
 task "test" do

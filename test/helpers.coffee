@@ -1,7 +1,9 @@
 assert = require "assert"
 SchemaManager = require("../schema_manager")
 
-api = require("../../../coffee/example_api")
+# For this to work, you must have the main Patchboard repo living
+# in the same directory as patchboard-js
+api = require("../../patchboard/src/example_api")
 api.directory = {}
 SchemaManager.normalize(api.schema)
 
