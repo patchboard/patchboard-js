@@ -1,8 +1,8 @@
 {
-  "name": "patchboard-client",
+  "name": "patchboard-js",
   "description": "Client for using Patchboard HTTP APIs",
   "author": "Matthew King",
-  "version": "0.4.0alpha",
+  "version": "0.4.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/automatthew/patchboard/"
