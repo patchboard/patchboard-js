@@ -13,13 +13,10 @@
     "client.coffee"
   ],
   "dependencies": {
-    "shred": "0.8.8"
+    "shred": "0.8.8",
+    "request": "~2.27.0"
   },
   "devDependencies": {
     "testify": "0.2.x"
   }
 }
-
-
-
-

@@ -1,9 +1,12 @@
-# HTTP client library
+{type} = require "fairmont"
+Request = require "request"
+
 Shred = require("shred")
 
 SchemaManager = require("./schema_manager")
+Action = require("./action")
 
-class Client
+module.exports = class Client
 
   @SchemaManager = SchemaManager
 
@@ -141,161 +144,54 @@ class Client
     resource_constructors
 
   create_resource_constructor: (type, definition) ->
+    client = @
     constructor = (data) ->
       for key, value of data
         @[key] = value
       return @
 
-    constructor.prototype._requests = {}
+    constructor.prototype._actions = {}
     constructor.prototype.resource_type = type
-    # Hide the Shred client from such things as console.log
+    # Hide the Patchboard client from such things as console.log
     Object.defineProperty constructor.prototype, "patchboard_client",
       value: @
       enumerable: false
 
+    # Mix in default resource methods
     for name, method of @resource_methods
       constructor.prototype[name] = method
 
-    if @authorizer
-      constructor.prototype.authorize = @authorizer
+    for name, def of definition.actions
+      do (name, def) ->
+        action = constructor.prototype._actions[name] = new Action(client, name, def)
+        constructor.prototype[name] = (args...) ->
+          action.request(@url, args...)
 
-    for name, action of definition.actions
-      constructor.prototype._requests[name] = @request_creator(name, action)
-      constructor.prototype[name] = @register_action(name)
     constructor
 
 
-  # returns a function intended to be bound to a resource instance
-  register_action: (name) ->
-    (options) ->
-      request = @_prepare_request(name, options)
-      if request
-        @patchboard_client.shred.request(request)
-
-
   resource_methods:
-    # Method for preparing a request object that can be modified
-    # before passing to shred.request().
-    #
-    #   req = resource._prepare_request "create", {content: "some data"}
-    #   req.headers["X-Custom-Whatsit"] =  "Space Monkeys"
-    #   shred.request(req)
-    _prepare_request: (name, options) ->
-      prepper = @_requests[name]
-      if prepper
-        prepper.call(@, name, options)
-      else
-        # TODO: catch this error synchronously in the actual request call
-        # and relay into the user-supplied error handler.
-        throw new Error("No such action defined: #{name}")
 
     # returns a string that (when logged to console) can be used as the
     # curl command that exactly represents this action.
-    curl: (name, options) ->
-      request = @_prepare_request(name, options)
-      {method, url, headers, content} = request
+    curl: (name, args...) ->
+      action = @_actions[name]
+      request = action.create_request(@url, args...)
+
+      {method, url, headers, body} = request
       agent = headers["User-Agent"]
       command = []
       command.push "curl -v -A '#{agent}' -X #{method}"
       for header, value of headers when header != "User-Agent"
         command.push "  -H '#{header}: #{value}'"
 
-      if content
-        command.push "  -d '#{JSON.stringify(content)}'"
+      if body
+        command.push "  -d '#{JSON.stringify(body)}'"
       command.push "  #{url}"
       command.join(" \\\n")
 
+  # end resource_methods
 
-  # Returns a function intended to be used as a method on a
-  # Resource instance.
-  request_creator: (name, definition) ->
-    client = @
-
-    method = definition.method
-    default_headers = {}
-    if request_type = definition.request_schema
-      request_media_type = client.schema_manager.find(request_type).mediaType
-      default_headers["Content-Type"] = request_media_type
-    # FIXME:  we should also check for definition.accept
-    if response_type = definition.response_schema
-      response_schema = client.schema_manager.find(response_type)
-      response_media_type = response_schema.mediaType
-      default_headers["Accept"] = response_media_type
-
-    authorization = definition.authorization
-    if query = definition.query
-      required_params = query.required
-
-    (name, options) ->
-      resource = @
-      request =
-        url: resource.url
-        method: method
-        headers:
-          "User-Agent": "patchboard_client"
-        query: options.query
-        cookieJar: null
-        on: {}
-
-      # never silently fail on request errors.
-      # TODO: allow a default request_error handler on Client construction
-      options.on.request_error ||= (error) ->
-        console.error "Problem with request:", error
-
-      if options.body
-        request.body = options.body
-      else if options.content
-        request.content = options.content
-
-      # verify presence of the required query params from the schema
-      # TODO: check for unexpected params.
-      for key, value of definition.query
-        if value.required && !request.query
-          # TODO: catch this error synchronously in the actual request call
-          # and relay into the user-supplied error handler.
-          options.on.request_error(
-            new Error("Missing required query param: #{key}")
-          )
-          return
-
-      if authorization
-        if resource.authorize
-          credential = resource.authorize(authorization, name)
-          request.headers["Authorization"] = "#{authorization} #{credential}"
-        else
-          # FIXME: this should be done as a preflight check
-          options.on.request_error(
-            new Error("Request requires authorization of type 'authorization', but no authorizer was provided")
-          )
-          return
-
-
-      # copy default headers
-      for key, value of default_headers
-        request.headers[key] = value
-
-      # Input headers should override the defaults determined from the API spec.
-      for key, value of options.headers
-        request.headers[key] = value
-
-      # We only decorate the response content for the handler corresponding
-      # to the action definition's "status"
-      success_handler = options.on[definition.status]
-      if success_handler && response_schema
-        request.on[definition.status] = (response) ->
-          # TODO: check the Content-Type header
-          decorated = client.decorate(response_schema, response.content.data)
-          success_handler(response, decorated)
-        delete options.on[definition.status]
-
-
-      # TODO: figure out how Shred handles 30x and assess whether Patchboard
-      # needs to care.
-
-      for status, handler of options.on
-        request.on[status] = handler
-
-      request
 
   decorate: (schema, data) ->
     if name = schema.id?.split("#")[1]
@@ -333,4 +229,3 @@ class Client
 
 
 
-module.exports = Client

@@ -1,7 +1,7 @@
 assert = require "assert"
 SchemaManager = require("../schema_manager")
 
-api = require("../../../coffee/example_api")
+api = require("../../patchboard/src/example_api")
 api.directory = {}
 SchemaManager.normalize(api.schema)
 
