@@ -2,14 +2,14 @@ assert = require "assert"
 SchemaManager = require("../schema_manager")
 
 api = require("../../patchboard/src/example_api")
-api.directory = {}
 SchemaManager.normalize(api.schema)
 
 module.exports =
   api:
-    directory: {}
+    directory: api.directory
     resources: api.resources
     schemas: [api.schema]
+    service_url: "http://smurf.com"
 
   partial_equal: (actual, expected) ->
     for key, val of expected

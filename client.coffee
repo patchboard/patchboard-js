@@ -10,36 +10,35 @@ module.exports = class Client
 
   @SchemaManager = SchemaManager
 
-  @discover: (service_url, handlers) ->
-    if service_url.constructor != String
-      throw new Error("Expected to receive a String, but got something else")
+  #@discover: (service_url, handlers) ->
+    #if service_url.constructor != String
+      #throw new Error("Expected to receive a String, but got something else")
 
-    create_client = (response) ->
-      client = new Client(response.content.data)
+    #create_client = (response) ->
+      #client = new Client(response.content.data)
       
-    if handler = handlers["200"]
-      handlers["200"] = (response) ->
-        client = new Client(response.content.data)
-        handler(client)
+    #if handler = handlers["200"]
+      #handlers["200"] = (response) ->
+        #client = new Client(response.content.data)
+        #handler(client)
 
-    else if handler = handlers["response"]
-      handlers["response"] = (response) ->
-        client = new Client(response.content.data)
-        handler(client)
+    #else if handler = handlers["response"]
+      #handlers["response"] = (response) ->
+        #client = new Client(response.content.data)
+        #handler(client)
 
-    new Shred().request
-      url: service_url
-      method: "GET"
-      headers:
-        "Accept": "application/json"
-      cookieJar: null
-      on: handlers
+    #new Shred().request
+      #url: service_url
+      #method: "GET"
+      #headers:
+        #"Accept": "application/json"
+      #cookieJar: null
+      #on: handlers
 
 
 
   constructor: (@api, options={}) ->
     {@authorizer} = options
-    @shred = new Shred()
 
     # Validate API specification
     required_fields = ["schemas", "resources", "directory"]
@@ -52,66 +51,85 @@ module.exports = class Client
       throw new Error("API specification is missing fields: #{missing_fields.join(', ')}")
 
     @schema_manager = new SchemaManager(@api.schemas...)
-
-    @resource_constructors = @create_resource_constructors(@api.resources)
+    @resource_constructors = @create_resource_constructors(@api.resources, @api.directory)
 
     @resources = {}
     @create_directory(@api.directory, @resource_constructors)
 
-
   # Create resource instances using the URLs supplied in the service
   # description's directory.
   create_directory: (directory, constructors) ->
-    for key, options of directory
-      if options.constructor == String
-        # FIXME: This is here for temporary backwards compatibility while
-        # reworking the service to provide the right directory format
-        @resources[key] = new constructors[key](url: options)
-      else if constructors[options.resource]
-        if options.url
-          # The API has provided a URL for this resource, so we do not have to
-          # generate it.  This is the expected case for directories coming
-          # from a Patchboard Server.
-          url = options.url
-          @resources[key] = new constructors[options.resource](url: url)
-        else if options.path
-          # When using a Patchboard definition for a third party API, you may
-          # choose to specify paths in the directory, instead of full URLs,
-          # to avoid the redundancy.
-          url = @api.service_url + options.path
-          @resources[key] = new constructors[options.resource](url: url)
-        else if options.template
-          # Patchboard can use path templates to provide support for
-          # insufficiently hyperlinked APIs.  First we create methods for
-          # instantiating parameterized resources.
-          # Example:
-          #     client.resources.user(login: "dyoder")
-          @resources[key] = @create_resource(options.resource, options.template)
-          # Then, if an association is specified, we imbue the associated
-          # constructor with a method for instantiating this resource.
-          if options.association
-            @associate(options)
+    for name, mapping of directory
+      do (name, mapping) =>
+        if constructor = constructors[mapping.resource]
+          if mapping.url && !mapping.query
+            # The API has provided a URL for this resource, so we do not have to
+            # generate it.  This is the expected case for directories coming
+            # from a Patchboard Server.
+            url = mapping.url
+            @resources[name] = new constructor(null, url: url)
 
-  create_resource: (name, template) ->
-    (options) =>
-      constructor = @resource_constructors[name]
-      options.url = @generate_url(template, options)
-      return new constructor(options)
-
-  generate_url: (template, options) ->
-    parts = template.split("/")
-    out = []
-    for part in parts
-      if part.indexOf(":") == 0
-        key = part.slice(1)
-        if string = options[key]
-          out.push(string)
+          else if mapping.path && !mapping.query
+            url = @generate_url(mapping)
+            @resources[name] = new constructor(null, url: url)
+          else
+            @resources[name] = (params={}) ->
+              new constructor(params)
+            # Then, if an association is specified, we imbue the associated
+            # constructor with a method for instantiating this resource.
+            if mapping.association
+              # TODO: apply @associate everywhere appropriate, not just for
+              # resources created at startup
+              @associate(mapping)
         else
-          string = "Missing key: '#{key}' in options: #{JSON.stringify(options)}"
-          throw new Error(string)
+          throw new Error "No constructor for '#{name}'"
+
+  create: (name, params) ->
+    constructor = @resource_constructors[name]
+    constructor(params, {})
+
+  generate_url: (mapping, params) ->
+    url = @api.service_url
+    if template = mapping.template
+      parts = template.split("/")
+      out = []
+      for part in parts
+        if part.indexOf(":") == 0
+          key = part.slice(1)
+          if string = params[key]
+            out.push(string)
+          else
+            string = "Missing key: '#{key}' in params: #{JSON.stringify(params)}"
+            throw new Error(string)
+        else
+          out.push(part)
+      path = out.join("/")
+    else if mapping.path
+      path = mapping.path
+    else if mapping.url
+      url = mapping.url
+      path = ""
+    else
+      throw new Error "Unusable URL generator: #{JSON.stringify(mapping)}"
+
+    query_string = ""
+    if query = mapping.query
+      parts = []
+      keys = Object.keys(query).sort()
+      for key in keys
+        schema = query[key]
+        if string = params[key]
+          parts.push "#{key}=#{string}"
+      if parts.length > 0
+        query_string = "?#{parts.join('&')}"
       else
-        out.push(part)
-    @api.service_url + out.join("/")
+        query_string = ""
+
+    encodeURI(url + path + query_string)
+
+
+
+
 
   associate: (spec) ->
     client = @
@@ -129,23 +147,32 @@ module.exports = class Client
       Object.defineProperty target_constructor.prototype, spec.resource,
         get:  ->
           identifier = identify(@)
-          url = client.generate_url(spec.template, identifier)
-          new extension_constructor(url: url)
+          url = client.generate_url(spec, identifier)
+          new extension_constructor(null, url: url)
 
 
-  create_resource_constructors: (definitions) ->
+  create_resource_constructors: (definitions, directory) ->
     resource_constructors = {}
-    for type, definition of definitions
-      constructor = @create_resource_constructor(type, definition)
-      resource_constructors[type] = constructor
-      if definition.aliases
-        for alias in definition.aliases
+
+    for name, mapping of directory
+      type = mapping.resource
+      resource_definition = definitions[type]
+      constructor = @create_resource_constructor(type, mapping, resource_definition)
+      resource_constructors[name] = constructor
+
+      # FIXME: I am not sure aliasing belongs in the resource defs.
+      # May be better in the directory
+      if resource_definition.aliases
+        for alias in resource_definition.aliases
           resource_constructors[alias] = constructor
+
     resource_constructors
 
-  create_resource_constructor: (type, definition) ->
+  create_resource_constructor: (type, mapping, definition) ->
     client = @
-    constructor = (data) ->
+    constructor = (params, data={}) ->
+      if params
+        data.url = client.generate_url(mapping, params)
       for key, value of data
         @[key] = value
       return @
@@ -196,7 +223,7 @@ module.exports = class Client
   decorate: (schema, data) ->
     if name = schema.id?.split("#")[1]
       if constructor = @resource_constructors[name]
-        data = new constructor(data)
+        data = new constructor(null, data)
     return @_decorate(schema, data) || data
 
 
