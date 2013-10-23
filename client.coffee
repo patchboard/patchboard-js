@@ -41,7 +41,7 @@ module.exports = class Client
     {@authorizer} = options
 
     # Validate API specification
-    required_fields = ["schemas", "resources", "directory"]
+    required_fields = ["schemas", "resources", "mappings"]
     missing_fields = []
     for field in required_fields
       unless @api[field]
@@ -51,15 +51,15 @@ module.exports = class Client
       throw new Error("API specification is missing fields: #{missing_fields.join(', ')}")
 
     @schema_manager = new SchemaManager(@api.schemas...)
-    @resource_constructors = @create_resource_constructors(@api.resources, @api.directory)
+    @resource_constructors = @create_resource_constructors(@api.resources, @api.mappings)
 
     @resources = {}
-    @create_directory(@api.directory, @resource_constructors)
+    @create_directory(@api.mappings, @resource_constructors)
 
   # Create resource instances using the URLs supplied in the service
-  # description's directory.
-  create_directory: (directory, constructors) ->
-    for name, mapping of directory
+  # description's mappings.
+  create_directory: (mappings, constructors) ->
+    for name, mapping of mappings
       do (name, mapping) =>
         if constructor = constructors[mapping.resource]
           if mapping.url && !mapping.query
@@ -151,17 +151,17 @@ module.exports = class Client
           new extension_constructor(null, url: url)
 
 
-  create_resource_constructors: (definitions, directory) ->
+  create_resource_constructors: (definitions, mappings) ->
     resource_constructors = {}
 
-    for name, mapping of directory
+    for name, mapping of mappings
       type = mapping.resource
       resource_definition = definitions[type]
       constructor = @create_resource_constructor(type, mapping, resource_definition)
       resource_constructors[name] = constructor
 
       # FIXME: I am not sure aliasing belongs in the resource defs.
-      # May be better in the directory
+      # May be better in the mappings
       if resource_definition.aliases
         for alias in resource_definition.aliases
           resource_constructors[alias] = constructor
