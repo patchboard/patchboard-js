@@ -1,21 +1,15 @@
-assert = require "assert"
+{assert} = require "fairmont"
 Testify = require "testify"
 
 SchemaManager = require "../schema_manager"
 Action = require "../action"
 
 {api} = require "./helpers"
+{media_type} = api
 schema_manager = new SchemaManager(api.schemas...)
 client = {schema_manager}
 
 # helper functions
-
-assert.keys = (object, keys) ->
-  assert.deepEqual Object.keys(object).sort(), keys.sort()
-
-media_type = (name) ->
-  "application/vnd.gh-knockoff.#{name}+json;version=1.0"
-
 
 
 Testify.test "Action", (context) ->
