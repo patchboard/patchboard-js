@@ -17,24 +17,35 @@ exports.media_type = media_type = (name) ->
 exports.mappings =
  
   authenticated_user:
-    resource: "user"
     path: "/user"
+    resource: "user"
  
   user:
     resource: "user"
     template: "/users/:login"
 
   user_search:
-    resource: "user_search"
     path: "/users"
+    resource: "user_search"
     query: search_query
  
- 
-  org_search:
-    resource: "org_search"
-    path: "/orgs"
+  repositories:
+    description: "Repositories for the authenticated user"
+    path: "/user/repos"
+    resource: "repositories"
+  
+  user_repositories:
+    path: "/user/:login/repos"
+    resource: "repositories"
+  
+  repository:
+    template: "/repos/:login/:name"
+    resource: "repository"
+  
+  repo_search:
+    path: "/repos"
     query: search_query
-
+    resource: "repo_search"
 
 
 exports.resources =
@@ -58,77 +69,34 @@ exports.resources =
         response_schema: "user_list"
         status: 200
 
-  org_search:
+  repository:
     actions:
       get:
         method: "GET"
-        response_schema: "organization_list"
-        status: 200
-
-
-  organizations:
-    actions:
-      create:
-        method: "POST"
-        request_schema: "organization"
-        response_schema: "organization"
-        status: 201
-
-  organization:
-    actions:
-      get:
-        method: "GET"
-        response_schema: "organization"
+        response_schema: "repository"
         status: 200
 
       update:
         method: "PUT"
-        request_schema: "organization"
-        response_schema: "organization"
-        authorization: "Basic"
-        status: 200
-
-      delete:
-        method: "DELETE"
-        authorization: "Basic"
-        status: 204
-
-  plans:
-    actions:
-      list:
-        method: "GET"
-        response_schema: "plan_list"
-        status: 200
-
-
-  plan:
-    actions:
-      get:
-        method: "GET"
-        response_schema: "plan"
-        status: 200
-
-      update:
-        method: "PUT"
-        request_schema: "plan"
-        response_schema: "plan"
-        status: 200
-
-  project:
-    actions:
-
-      get:
-        method: "GET"
-        response_schema: "project"
-        status: 200
-
-      update:
-        method: "PUT"
-        response_schema: "project"
+        response_schema: "repository"
         status: 200
 
       delete:
         method: "DELETE", status: 204
+
+  repo_search:
+    actions:
+      get:
+        method: "GET"
+        response_schema: "repository_list"
+        status: 200
+
+  repositories:
+    actions:
+      create:
+        method: "POST"
+        request_schema: "repository"
+        status: 201
 
   ref:
     actions:
@@ -172,37 +140,6 @@ exports.schema =
           type: "string"
           format: "uri"
 
-    organization:
-      extends: {$ref: "#resource"}
-      mediaType: media_type("organization")
-      properties:
-        name: {type: "string"}
-        plan: {$ref: "#plan"}
-        projects:
-          # Here's how you describe a dictionary
-          type: "object"
-          additionalProperties: {$ref: "#project"}
-        members: {$ref: "#user_list"}
-
-    organization_list:
-      type: "object"
-      mediaType: media_type("organization_list")
-      additionalProperties: {$ref: "#organization"}
-
-
-    plan:
-      extends: {$ref: "#resource"}
-      mediaType: media_type("plan")
-      properties:
-        name: {type: "string"}
-        space: {type: "integer"}
-        bandwidth: {type: "integer"}
-
-    plan_list:
-      type: "object"
-      mediaType: media_type("plan_list")
-      additionalProperties: {$ref: "#plan"}
-
     user:
       extends: {$ref: "#resource"}
       mediaType: media_type("user")
@@ -216,9 +153,9 @@ exports.schema =
       items: {$ref: "#user"}
 
 
-    project:
+    repository:
       extends: {$ref: "#resource"}
-      mediaType: media_type("project")
+      mediaType: media_type("repository")
       properties:
         name: {type: "string"}
         description: {type: "string"}
@@ -233,10 +170,10 @@ exports.schema =
               type: "array"
               items: {$ref: "#tag"}
 
-    project_list:
-      mediaType: media_type("project_list")
+    repository_list:
+      mediaType: media_type("repository_list")
       type: "array"
-      items: {$ref: "#project"}
+      items: {$ref: "#repository"}
 
 
     reference:

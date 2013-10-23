@@ -75,12 +75,6 @@ module.exports = class Client
           else
             @resources[name] = (params={}) ->
               new constructor(params)
-            # Then, if an association is specified, we imbue the associated
-            # constructor with a method for instantiating this resource.
-            if mapping.association
-              # TODO: apply @associate everywhere appropriate, not just for
-              # resources created at startup
-              @associate(mapping)
         else
           throw new Error "No constructor for '#{name}'"
 
@@ -128,35 +122,14 @@ module.exports = class Client
     encodeURI(url + path + query_string)
 
 
-
-
-
-  associate: (spec) ->
-    client = @
-    # TODO: error checking
-    target = spec.association
-
-    target_constructor = @resource_constructors[target]
-    # TODO: handle situation where no identifiers object has been created.
-    # TODO: handle situation where named identifier does not exist.
-    identify = @identifiers[target]
-
-    extension_constructor = @resource_constructors[spec.resource]
-
-    if target_constructor && extension_constructor
-      Object.defineProperty target_constructor.prototype, spec.resource,
-        get:  ->
-          identifier = identify(@)
-          url = client.generate_url(spec, identifier)
-          new extension_constructor(null, url: url)
-
-
   create_resource_constructors: (definitions, mappings) ->
     resource_constructors = {}
 
     for name, mapping of mappings
       type = mapping.resource
       resource_definition = definitions[type]
+      if !resource_definition
+        throw new Error "No resource defined for '#{type}'"
       constructor = @create_resource_constructor(type, mapping, resource_definition)
       resource_constructors[name] = constructor
 
