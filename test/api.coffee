@@ -22,10 +22,10 @@ exports.mappings =
  
   user:
     resource: "user"
-    template: "/users/:login"
+    template: "/user/:login"
 
   user_search:
-    path: "/users"
+    path: "/user"
     resource: "user_search"
     query: search_query
  
