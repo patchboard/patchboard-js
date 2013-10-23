@@ -131,7 +131,9 @@ exports.resources =
 
 exports.schema =
   id: "gh-knockoff"
-  properties:
+  # This is the conventional place to store schema definitions,
+  # becoming official as of Draft 04
+  definitions:
 
     resource:
       type: "object"
@@ -141,20 +143,21 @@ exports.schema =
           format: "uri"
 
     user:
-      extends: {$ref: "#resource"}
+      extends: {$ref: "#/definitions/resource"}
       mediaType: media_type("user")
       properties:
+        login: {type: "string"}
         name: {type: "string"}
         email: {type: "string"}
 
     user_list:
       mediaType: media_type("user_list")
       type: "array"
-      items: {$ref: "#user"}
+      items: {$ref: "#/definitions/user"}
 
 
     repository:
-      extends: {$ref: "#resource"}
+      extends: {$ref: "#/definitions/resource"}
       mediaType: media_type("repository")
       properties:
         name: {type: "string"}
@@ -162,22 +165,22 @@ exports.schema =
         refs:
           type: "object"
           properties:
-            main: {$ref: "#branch"}
+            main: {$ref: "#/definitions/branch"}
             branches:
               type: "object"
-              additionalProperties: {$ref: "#branch"}
+              additionalProperties: {$ref: "#/definitions/branch"}
             tags:
               type: "array"
-              items: {$ref: "#tag"}
+              items: {$ref: "#/definitions/tag"}
 
     repository_list:
       mediaType: media_type("repository_list")
       type: "array"
-      items: {$ref: "#repository"}
+      items: {$ref: "#/definitions/repository"}
 
 
     reference:
-      extends: {$ref: "#resource"}
+      extends: {$ref: "#/definitions/resource"}
       mediaType: media_type("reference")
       properties:
         name:
@@ -191,11 +194,11 @@ exports.schema =
           type: "string"
 
     branch:
-      extends: {$ref: "#reference"}
+      extends: {$ref: "#/definitions/reference"}
       mediaType: media_type("branch")
 
     tag:
-      extends: {$ref: "#reference"}
+      extends: {$ref: "#/definitions/reference"}
       mediaType: media_type("tag")
 
 
