@@ -10,30 +10,27 @@ module.exports = class Client
 
   @SchemaManager = SchemaManager
 
-  #@discover: (service_url, handlers) ->
-    #if service_url.constructor != String
-      #throw new Error("Expected to receive a String, but got something else")
+  @discover: (url, callback) ->
+    if url.constructor != String
+      throw new Error("Discovery URL must be a string")
 
-    #create_client = (response) ->
-      #client = new Client(response.content.data)
-      
-    #if handler = handlers["200"]
-      #handlers["200"] = (response) ->
-        #client = new Client(response.content.data)
-        #handler(client)
+    options =
+      url: url
+      method: "GET"
+      headers:
+        "Accept": "application/json"
 
-    #else if handler = handlers["response"]
-      #handlers["response"] = (response) ->
-        #client = new Client(response.content.data)
-        #handler(client)
-
-    #new Shred().request
-      #url: service_url
-      #method: "GET"
-      #headers:
-        #"Accept": "application/json"
-      #cookieJar: null
-      #on: handlers
+    Request options, (error, response, body) =>
+      if error
+        callback error
+      else
+        try
+          data = JSON.parse(body)
+        catch error
+          callback "Unparseable response body: #{error.message}"
+          return
+        client = new Client(data)
+        callback null, client
 
 
 
@@ -123,28 +120,30 @@ module.exports = class Client
 
 
   create_resource_constructors: (definitions, mappings) ->
-    resource_constructors = {}
+    constructors = {}
+
+    for type, definition of definitions
+      constructor = @resource_constructor({type, definition})
+      constructors[type] = constructor
 
     for name, mapping of mappings
       type = mapping.resource
-      resource_definition = definitions[type]
-      if !resource_definition
+      definition = definitions[type]
+      if !definition
         throw new Error "No resource defined for '#{type}'"
-      constructor = @create_resource_constructor(type, mapping, resource_definition)
-      resource_constructors[name] = constructor
+      constructor = @resource_constructor({type, mapping, definition})
+      constructors[name] = constructor
 
-      # FIXME: I am not sure aliasing belongs in the resource defs.
-      # May be better in the mappings
-      if resource_definition.aliases
-        for alias in resource_definition.aliases
-          resource_constructors[alias] = constructor
+      if definition.aliases
+        for alias in definition.aliases
+          constructors[alias] = constructor
 
-    resource_constructors
+    constructors
 
-  create_resource_constructor: (type, mapping, definition) ->
+  resource_constructor: ({type, mapping, definition}) ->
     client = @
     constructor = (params, data={}) ->
-      if params
+      if mapping && params && !data.url
         data.url = client.generate_url(mapping, params)
       for key, value of data
         @[key] = value

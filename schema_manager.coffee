@@ -108,22 +108,26 @@ class SchemaManager
 
 
   register_schema: (schema) ->
-    for name, definition of schema.properties
-      @inherit_properties(definition)
+    for string in ["definitions", "properties"]
+      if dict = schema[string]
+        for name, definition of dict
+          @inherit_properties(definition, schema.id)
+          @names[name] = definition
+          if definition.id
+            key = "#{schema.id}#{definition.id}"
+            @ids[key] = definition
+          if definition.mediaType
+            @media_types[definition.mediaType] = definition
 
-      @names[name] = definition
-      if definition.id
-        @ids[definition.id] = definition
-      if definition.mediaType
-        @media_types[definition.mediaType] = definition
-
-  inherit_properties: (schema) ->
+  inherit_properties: (schema, scope) ->
     # copying all the properties is cheating. Probably should
     # define a Schema class that can make use of parent schema
     # without copying.
     if schema.extends
       # are there any cases where the value wouldn't be a $ref?
       parent_id = schema.extends.$ref
+      if parent_id.indexOf("#") == 0
+        parent_id = scope + parent_id
       parent = @ids[parent_id]
       if parent
         merged = {properties: {}}
@@ -133,7 +137,7 @@ class SchemaManager
           merged.properties[key] = value
         schema.properties = merged.properties
       else
-        throw "Could not find parent schema: #{parent_id}"
+        throw new Error "Could not find parent schema: #{parent_id}, #{schema.id}"
 
 
 module.exports = SchemaManager
