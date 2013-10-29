@@ -97,6 +97,8 @@ module.exports = class Action
           [options.body] = args
         when "object"
           [options.content] = args
+        when "array"
+          [options.content] = args
         else
           throw new Error "Invalid arguments for action"
     else
