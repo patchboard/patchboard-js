@@ -1,8 +1,4 @@
-assert = require "assert"
-SchemaManager = require("../schema_manager")
-
 api = require("./api")
-
 module.exports =
   api:
     service_url: "http://smurf.com"

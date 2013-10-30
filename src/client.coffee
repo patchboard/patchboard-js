@@ -1,8 +1,6 @@
 {type} = require "fairmont"
 Request = require "request"
 
-Shred = require("shred")
-
 SchemaManager = require("./schema_manager")
 
 Action = require("./action")

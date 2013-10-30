@@ -1,7 +1,7 @@
 assert = require "assert"
 Testify = require "testify"
 
-Client = require "../client"
+Client = require "../src/client"
 
 {api} = require "./helpers"
 

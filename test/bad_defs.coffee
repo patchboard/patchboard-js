@@ -2,7 +2,7 @@ deap = require "deap"
 assert = require "assert"
 Testify = require "testify"
 
-Client = require "../client"
+Client = require "../src/client"
 
 
 base_api =
