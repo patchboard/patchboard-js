@@ -4,6 +4,7 @@ Request = require "request"
 Shred = require("shred")
 
 SchemaManager = require("./schema_manager")
+
 Action = require("./action")
 
 module.exports = class Client
@@ -58,6 +59,10 @@ module.exports = class Client
   create_directory: (mappings, constructors) ->
     for name, mapping of mappings
       do (name, mapping) =>
+        {url, path, template} = mapping
+        # TODO: use a JSON schema for this sort of thing
+        if !(url || path || template)
+          throw new Error "Mapping lacks a url, path, or template field"
         if constructor = constructors[mapping.resource]
           if mapping.url && !mapping.query
             # The API has provided a URL for this resource, so we do not have to
@@ -214,17 +219,21 @@ module.exports = class Client
           for item, i in data
             if result = @decorate(schema.items, item)
               data[i] = result
-      else if !SchemaManager.is_primitive(schema.type)
-        # Declared properties
-        for key, value of schema.properties
-          if result = @decorate(value, data[key])
-            data[key] = result
-        # Default for undeclared properties
-        if addprop = schema.additionalProperties
-          for key, value of data
-            unless schema.properties?[key]
-              data[key] = @decorate(addprop, value)
-        return data
+      else
+        switch schema.type
+          when "string", "number", "integer", "boolean"
+            null
+          else
+            # Declared properties
+            for key, value of schema.properties
+              if result = @decorate(value, data[key])
+                data[key] = result
+            # Default for undeclared properties
+            if addprop = schema.additionalProperties
+              for key, value of data
+                unless schema.properties?[key]
+                  data[key] = @decorate(addprop, value)
+            return data
 
 
 

@@ -1,6 +1,5 @@
 JSCK = require "jsck"
 
-
 module.exports = class SchemaManager
 
   constructor: (@schemas...) ->
