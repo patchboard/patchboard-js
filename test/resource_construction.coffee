@@ -20,12 +20,12 @@ Testify.test "Resource construction", (context) ->
     context.test "mapping requires path params", ->
       user = resources.user(login: "dyoder")
       assert.equal user.resource_type, "user"
-      assert.equal user.url, "http://smurf.com/users/dyoder"
+      assert.equal user.url, "http://smurf.com/user/dyoder"
 
     context.test "mapping requires query params", ->
       user = resources.user_search(match: "dyoder")
       assert.equal user.resource_type, "user_search"
-      assert.equal user.url, "http://smurf.com/users?match=dyoder"
+      assert.equal user.url, "http://smurf.com/user?match=dyoder"
 
 
 

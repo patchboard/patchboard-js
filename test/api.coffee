@@ -1,5 +1,8 @@
 # Imaginary API of a GitHub knockoff
 
+urn = (name) ->
+  "urn:gh-knockoff##{name}"
+
 search_query =
   match:
     type: "string"
@@ -54,31 +57,31 @@ exports.resources =
     actions:
       get:
         method: "GET"
-        response_schema: "user"
+        response_schema: urn "user"
         status: 200
       update:
         method: "PUT"
-        request_schema: "user"
-        response_schema: "user"
+        request_schema: urn "user"
+        response_schema: urn "user"
         status: 200
 
   user_search:
     actions:
       get:
         method: "GET"
-        response_schema: "user_list"
+        response_schema: urn "user_list"
         status: 200
 
   repository:
     actions:
       get:
         method: "GET"
-        response_schema: "repository"
+        response_schema: urn "repository"
         status: 200
 
       update:
         method: "PUT"
-        response_schema: "repository"
+        response_schema: urn "repository"
         status: 200
 
       delete:
@@ -88,28 +91,28 @@ exports.resources =
     actions:
       get:
         method: "GET"
-        response_schema: "repository_list"
+        response_schema: urn "repository_list"
         status: 200
 
   repositories:
     actions:
       create:
         method: "POST"
-        request_schema: "repository"
+        request_schema: urn "repository"
         status: 201
 
   ref:
     actions:
       get:
         method: "GET"
-        response_schema: "reference"
+        response_schema: urn "reference"
         status: 200
 
   branch:
     actions:
       get:
         method: "GET"
-        response_schema: "reference"
+        response_schema: urn "reference"
         status: 200
       rename:
         method: "POST"
@@ -122,7 +125,7 @@ exports.resources =
     actions:
       get:
         method: "GET"
-        response_schema: "reference"
+        response_schema: urn "reference"
         status: 200
       delete:
         method: "DELETE"
@@ -130,7 +133,7 @@ exports.resources =
 
 
 exports.schema =
-  id: "gh-knockoff"
+  id: "urn:gh-knockoff"
   # This is the conventional place to store schema definitions,
   # becoming official as of Draft 04
   definitions:
@@ -161,6 +164,7 @@ exports.schema =
       mediaType: media_type("repository")
       properties:
         name: {type: "string"}
+        owner: {$ref: "#/definitions/user"}
         description: {type: "string"}
         refs:
           type: "object"
@@ -183,9 +187,6 @@ exports.schema =
       extends: {$ref: "#/definitions/resource"}
       mediaType: media_type("reference")
       properties:
-        name:
-          required: true
-          type: "string"
         commit:
           required: true
           type: "string"
@@ -196,9 +197,17 @@ exports.schema =
     branch:
       extends: {$ref: "#/definitions/reference"}
       mediaType: media_type("branch")
+      properties:
+        name:
+          required: true
+          type: "string"
 
     tag:
       extends: {$ref: "#/definitions/reference"}
       mediaType: media_type("tag")
+      properties:
+        name:
+          required: true
+          type: "string"
 
 

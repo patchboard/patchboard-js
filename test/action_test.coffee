@@ -1,7 +1,7 @@
 {assert} = require "fairmont"
 Testify = require "testify"
 
-SchemaManager = require "../schema_manager"
+SchemaManager = require "../schema_manager2"
 Action = require "../action"
 
 {api} = require "./helpers"

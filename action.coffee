@@ -9,8 +9,12 @@ module.exports = class Action
     {request_schema, response_schema} = @definition
     if request_schema
       @request_schema = @schema_manager.find(request_schema)
+      unless @request_schema
+        throw new Error "No schema found for request '#{request_schema}'"
     if response_schema
       @response_schema = @schema_manager.find(response_schema)
+      unless @response_schema
+        throw new Error "No schema found for response '#{request_schema}'"
 
     @_base_headers = @base_headers(@definition)
 

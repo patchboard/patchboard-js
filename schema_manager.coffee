@@ -1,143 +1,27 @@
-class SchemaManager
-
-  @urnize: (identifier) ->
-    if identifier.indexOf(":") == -1
-      "urn:json:#{identifier}"
-    else
-      identifier
-
-  @normalize: (schema) ->
-    # TODO: make sure this is idempotent, just in case it gets called twice
-    # on the same schema.  Also: do try not to call this twice on the same
-    # schema
-    # TODO LATER: make this non-destructive
-    schema.id = @urnize(schema.id)
-    @top_level_ids(schema.properties, schema.id)
-    @normalize_properties(schema.properties, schema.id)
-
-  @top_level_ids: (properties, namespace) ->
-    for name, schema of properties
-      if schema.id
-        if schema.id.indexOf("#") == 0
-          schema.id = "#{namespace}#{schema.id}"
-      else
-        schema.id = "#{namespace}##{name}"
-
-  @normalize_properties: (properties, namespace) ->
-    for name, definition of properties
-      @normalize_schema(name, definition, namespace)
-
-  @normalize_schema: (name, schema, namespace) ->
-    # TODO: assess whether we care at all about additional attrs:
-    # * disallow
-    # * dependencies
-
-    if schema.$ref
-      # This schema is a reference to another schema
-      @normalize_ref(schema, namespace)
-    else if schema.extends?
-      # This schema extends (a.k.a. inherits from) another schema
-      @normalize_ref(schema.extends, namespace)
-    else if schema.type == "array"
-      @normalize_array(schema, namespace)
-    else if schema.type == "object"
-      @normalize_object(schema, namespace)
-
-    if schema.properties
-      @normalize_properties(schema.properties, namespace)
+JSCK = require "jsck"
 
 
-  @normalize_extends: (schema, namespace) ->
-    # TODO: "extends" can be a schema or an array of schemas
-    if schema.$ref
-      @normalize_ref(schema, namespace)
-
-  @normalize_array: (schema, namespace) ->
-    if schema.items?.$ref
-      @normalize_ref(schema.items, namespace)
-    if schema.additionalItems?.$ref
-      @normalize_ref(schema.additionalItems, namespace)
-
-  @normalize_object: (schema, namespace) ->
-    if schema.additionalProperties?.$ref
-      @normalize_ref(schema.additionalProperties, namespace)
-
-  @normalize_ref: (schema, namespace) ->
-    index = schema.$ref.indexOf("#")
-    if index == 0
-      schema.$ref = "#{namespace}#{schema.$ref}"
-    else if index != -1
-      # if the ref string contains '#' but not at the beginning,
-      # we assume it is already namespaced. All that needs doing
-      # then is to make sure it is a URN
-      schema.$ref = @urnize(schema.$ref)
-
-  @is_primitive: (type) ->
-    for name in ["string", "number", "boolean"]
-      return true if type == name
-    return false
-
+module.exports = class SchemaManager
 
   constructor: (@schemas...) ->
-    @names = {} # the part after the fragment identifier
-    @ids = {}
-    @media_types = {}
-
     for schema in @schemas
-      #SchemaManager.normalize(schema)
-      @register_schema(schema)
+      # `definitions` is the conventional place to put schemas,
+      # so we'll define fragment IDs by default where they are
+      # not explicitly specified.
+      if definitions = schema.definitions
+        for name, definition of definitions
+          definition.id ||= "##{name}"
 
-  find: (options) ->
-    if options.constructor == String
-      index = options.indexOf("#")
-      if index > 0
-        options = {id: options}
-      else if index == 0
-        options = {name: options.slice(1)}
-      else
-        options = {name: options}
+    @jsck = new JSCK.draft3 @schemas...
+    @uris = @jsck.references
 
-    if id = options.id
-      if id.indexOf(":") == -1
-        id = SchemaManager.urnize(id)
-      @ids[id]
-    else if options.media_type
-      @media_types[options.media_type]
-    else if options.name
-      @names[options.name]
+  find: (args...) ->
+    @jsck.find(args...)
+
+  schema: (args...) ->
+    @jsck.validate(args...)
+
+  validate: (args...) ->
+    @jsck.validate(args...)
 
 
-  register_schema: (schema) ->
-    for string in ["definitions", "properties"]
-      if dict = schema[string]
-        for name, definition of dict
-          @inherit_properties(definition, schema.id)
-          @names[name] = definition
-          if definition.id
-            key = "#{schema.id}#{definition.id}"
-            @ids[key] = definition
-          if definition.mediaType
-            @media_types[definition.mediaType] = definition
-
-  inherit_properties: (schema, scope) ->
-    # copying all the properties is cheating. Probably should
-    # define a Schema class that can make use of parent schema
-    # without copying.
-    if schema.extends
-      # are there any cases where the value wouldn't be a $ref?
-      parent_id = schema.extends.$ref
-      if parent_id.indexOf("#") == 0
-        parent_id = scope + parent_id
-      parent = @ids[parent_id]
-      if parent
-        merged = {properties: {}}
-        for key, value of parent.properties
-          merged.properties[key] = value
-        for key, value of schema.properties
-          merged.properties[key] = value
-        schema.properties = merged.properties
-      else
-        throw new Error "Could not find parent schema: #{parent_id}, #{schema.id}"
-
-
-module.exports = SchemaManager
