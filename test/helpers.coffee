@@ -2,7 +2,6 @@ assert = require "assert"
 SchemaManager = require("../schema_manager")
 
 api = require("./api")
-SchemaManager.normalize(api.schema)
 
 module.exports =
   api:
