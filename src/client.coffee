@@ -1,4 +1,3 @@
-{type} = require "fairmont"
 Request = require "request"
 
 SchemaManager = require("./schema_manager")
