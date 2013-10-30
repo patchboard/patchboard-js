@@ -6,8 +6,6 @@ Action = require("./action")
 
 module.exports = class Client
 
-  @SchemaManager = SchemaManager
-
   @discover: (url, callback) ->
     if url.constructor != String
       throw new Error("Discovery URL must be a string")

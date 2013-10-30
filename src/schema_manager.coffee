@@ -17,10 +17,10 @@ module.exports = class SchemaManager
   find: (args...) ->
     @jsck.find(args...)
 
-  schema: (args...) ->
-    @jsck.validate(args...)
+  #schema: (args...) ->
+    #@jsck.validate(args...)
 
-  validate: (args...) ->
-    @jsck.validate(args...)
+  #validate: (args...) ->
+    #@jsck.validate(args...)
 
 
