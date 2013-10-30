@@ -2,24 +2,22 @@
   "name": "patchboard-js",
   "description": "JavaScript client for Patchboard APIs",
   "author": "Matthew King",
-  "version": "0.3.1",
+  "version": "0.4.0rc1",
   "repository": {
     "type": "git",
     "url": "git://github.com/automatthew/patchboard-js.git"
   },
-  "main": "./client.coffee",
+  "main": "./src/client.coffee",
   "files": [
-    "schema_manager.coffee",
-    "client.coffee"
+    "src/"
   ],
   "dependencies": {
-    "shred": "0.8.8"
+    "jsck": "0.1.1",
+    "request": "~2.27.0",
+    "fairmont": "~0.7.0"
   },
   "devDependencies": {
-    "testify": "0.2.x"
+    "testify": "0.2.x",
+    "deap": "~0.2.0"
   }
 }
-
-
-
-
