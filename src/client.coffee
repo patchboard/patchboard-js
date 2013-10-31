@@ -54,24 +54,16 @@ module.exports = class Client
   create_directory: (mappings, constructors) ->
     for name, mapping of mappings
       do (name, mapping) =>
-        {url, path, template} = mapping
-        # TODO: use a JSON schema for this sort of thing
-        if !(url || path || template)
+        {url, query} = mapping
+        if !(url || query)
           throw new Error "Mapping lacks a url, path, or template field"
-        if constructor = constructors[mapping.resource]
-          if mapping.url && !mapping.query
-            # The API has provided a URL for this resource, so we do not have to
-            # generate it.  This is the expected case for directories coming
-            # from a Patchboard Server.
-            url = mapping.url
-            @resources[name] = new constructor(null, url: url)
-
-          else if mapping.path && !mapping.query
-            url = @generate_url(mapping)
-            @resources[name] = new constructor(null, url: url)
-          else
-            @resources[name] = (params={}) ->
-              new constructor(params)
+        if constructor = constructors[name]
+          if mapping.url
+            if mapping.query
+              @resources[name] = (params={}) ->
+                new constructor(params)
+            else
+              @resources[name] = new constructor(null, url: mapping.url)
         else
           throw new Error "No constructor for '#{name}'"
 
@@ -82,6 +74,9 @@ module.exports = class Client
   generate_url: (mapping, params) ->
     url = @api.service_url
     if template = mapping.template
+      # this should never be needed when the API is served by a
+      # Patchboard Server.  Including it for client-side only
+      # uses, such as the GitHub API.
       parts = template.split("/")
       out = []
       for part in parts
@@ -96,6 +91,7 @@ module.exports = class Client
           out.push(part)
       path = out.join("/")
     else if mapping.path
+      # Ditto above comment.
       path = mapping.path
     else if mapping.url
       url = mapping.url
@@ -143,14 +139,21 @@ module.exports = class Client
   resource_constructor: ({type, mapping, definition}) ->
     client = @
     constructor = (params, data={}) ->
-      if mapping && params && !data.url
-        data.url = client.generate_url(mapping, params)
+
+      if mapping
+        {url, path, template, query} = mapping
+        url ||= data.url
+        data.url = client.generate_url({url, path, template, query}, params)
+
       for key, value of data
         @[key] = value
       return @
 
     constructor.prototype._actions = {}
     constructor.prototype.resource_type = type
+    if mapping?.query
+      constructor.query = mapping.query
+
     # Hide the Patchboard client from such things as console.log
     Object.defineProperty constructor.prototype, "patchboard_client",
       value: @
@@ -195,7 +198,20 @@ module.exports = class Client
   decorate: (schema, data) ->
     if name = schema.id?.split("#")[1]
       if constructor = @resource_constructors[name]
-        data = new constructor(null, data)
+        d = data
+        if constructor.query
+          # Some resources require query parameters to instantiate.
+          # For these, we've stuck the query definition onto the
+          # constructor.  For these cases, we substitute a simple
+          # function for the property.
+          # In usage, this looks like:
+          #   user.repository(name: "patchboard").update(content, callback)
+          # TODO: this approach short circuits any further decoration
+          # of resources inside the present resource.  Try to fix.
+          data = (params) ->
+            new constructor params, d
+        else
+          data = new constructor(null, d)
     return @_decorate(schema, data) || data
 
 
