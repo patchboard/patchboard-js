@@ -6,13 +6,15 @@ module.exports = class Action
   constructor: (@client, @name, @definition) ->
     {@schema_manager, @authorizer} = @client
 
-    {request_schema, response_schema} = @definition
-    if request_schema
-      @request_schema = @schema_manager.find(request_schema)
+    {request, response} = @definition
+    @status = response?.status || 200
+    if request?.type
+      @request_schema = @schema_manager.find mediaType: request.type
       unless @request_schema
-        throw new Error "No schema found for request '#{request_schema}'"
-    if response_schema
-      @response_schema = @schema_manager.find(response_schema)
+        throw new Error "No schema found for request '#{request.type}'"
+
+    if response?.type
+      @response_schema = @schema_manager.find mediaType: response.type
       unless @response_schema
         throw new Error "No schema found for response '#{request_schema}'"
 
@@ -73,7 +75,7 @@ module.exports = class Action
     (error, response, body) =>
       if error
         callback(error)
-      else if response.statusCode == @definition.status
+      else if response.statusCode == @status
         if @response_schema
           response.body = body
           try
@@ -94,7 +96,7 @@ module.exports = class Action
     options = {}
     signature = (args.map (arg) -> type(arg)).join(".")
 
-    content_required = @definition.request_schema?
+    content_required = @request_schema
     if content_required
       switch signature
         when "string"
