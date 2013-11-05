@@ -10,13 +10,9 @@ module.exports = class Action
     @status = response?.status || 200
     if request?.type
       @request_schema = @schema_manager.find mediaType: request.type
-      unless @request_schema
-        throw new Error "No schema found for request '#{request.type}'"
 
     if response?.type
       @response_schema = @schema_manager.find mediaType: response.type
-      unless @response_schema
-        throw new Error "No schema found for response '#{request_schema}'"
 
     @_base_headers = @base_headers(@definition)
 
