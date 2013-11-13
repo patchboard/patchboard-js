@@ -11,7 +11,6 @@ corsetCase = (string) ->
     .replace("_", "-")
     .replace /(^|-)(\w)/g, (s) -> s.toUpperCase()
 
-
 module.exports = class Request
 
   constructor: (options, callback) ->
@@ -30,7 +29,7 @@ module.exports = class Request
       method: @method
       headers: @headers
 
-    if @body
+    if @body && Buffer?
       @headers["Content-Length"] = Buffer.byteLength(@body)
 
     raw = client.request parameters, (response) =>
@@ -116,7 +115,11 @@ class ResponseContent
   process: (callback) ->
     # TODO: take encoding into account
     # TODO: check content-length against actual length
-    @buffer = Buffer.concat @chunks, @length
+    if Buffer?
+      @buffer = Buffer.concat @chunks, @length
+    else
+      @buffer = @chunks.join("")
+
     @process_encoding =>
       @process_type callback
 
