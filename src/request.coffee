@@ -1,6 +1,10 @@
 http = require "http"
 https = require "https"
 URL = require "url"
+try
+  zlib = require "zlib"
+catch error
+  zlib = null
 
 corsetCase = (string) ->
   string.toLowerCase()
@@ -11,9 +15,10 @@ corsetCase = (string) ->
 module.exports = class Request
 
   constructor: (options, callback) ->
-    {@url, @method, @headers, @body, @timeout, @redirects} = options
+    {@url, @method, @headers, @body, timeout, @redirects} = options
     @method = @method.toUpperCase()
     @redirects ?= 1
+    # TODO: allow query params as object in options
     {protocol, hostname, port, path} = URL.parse @url
 
     client = (if protocol is "http:" then http else https)
@@ -33,16 +38,16 @@ module.exports = class Request
         when 300, 301, 302, 303, 307
           @redirect @, response, callback
         when 304, 305
-          callback new Error "#{response.statusCode} handling not implemented"
+          callback new Error "#{response.statusCode} handling not yet implemented"
         else
           response = new Response(response, callback)
 
     raw.on "error", (error) =>
       callback error
 
-    if @timeout
-      @timeout = raw.setTimeout raw, =>
-        callback new Error "Request timed out"
+    if timeout
+      raw.setTimeout timeout, =>
+        raw.abort()
 
     if @body
       raw.write @body.toString()
@@ -68,45 +73,72 @@ module.exports = class Request
 
 class Response
 
-  constructor: (@_raw, callback) ->
-    @content = new ResponseContent @
-    @status = @_raw.statusCode
-    @headers = {}
-    for key, value of @_raw.headers
-      @headers[corsetCase(key)] = value
+  constructor: (@raw, callback) ->
+    @_content = new ResponseContent @
+    @status = @raw.statusCode
 
-    @_raw.on "end", =>
-      # TODO: getters with Object.defineProperties
-      @body = @content.body()
-      @data = @content.data()
-      callback null, @
+    @headers = {}
+    @_normalized = {}
+    for key, value of @raw.headers
+      @headers[key] = value
+      @_normalized[corsetCase(key)] = value
+
+    @raw.on "end", =>
+      @_content.process (@content) =>
+        @body = @content.body
+        @data = @content.data
+        callback null, @
+
+  getHeader: (name) ->
+    @headers[name] || @_normalized[corsetCase(name)]
 
 
 class ResponseContent
 
   constructor: (@response) ->
-    @raw = @response._raw
+    @raw = @response.raw
     @chunks = []
     @length = 0
 
     {headers} = @raw
     @type = headers["Content-Type"] || headers["content-type"]
+    switch (encoding = headers["Content-Encoding"] || headers["content-encoding"])
+      when "gzip"
+        @encoding = encoding
+      else
+        @encoding = null
 
     @raw.on "data", (chunk) =>
       @chunks.push chunk
       @length += chunk.length
 
-  body: ->
+
+  process: (callback) ->
     # TODO: take encoding into account
     # TODO: check content-length against actual length
-    @_body ||= @chunks.join("")
+    @buffer = Buffer.concat @chunks, @length
+    @process_encoding =>
+      @process_type callback
 
-  data: ->
+  process_encoding: (callback) ->
+    if @encoding && zlib
+      zlib.gunzip @buffer, (error, buffer) =>
+        @body = buffer.toString("utf-8")
+        callback()
+    else
+      @body = @buffer.toString("utf-8")
+      callback()
+
+  process_type: (callback) ->
     if @type
       if /json/.test @type
-        JSON.parse @body()
-      else
-        undefined
+        try
+          @data = JSON.parse(@body)
+        catch error
+          @data = undefined
+
+    callback
+      buffer: @buffer, body: @body, data: @data
 
 
 

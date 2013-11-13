@@ -1,4 +1,4 @@
-Request = require "request"
+Request = require "./request"
 
 SchemaManager = require("./schema_manager")
 
@@ -6,32 +6,39 @@ Action = require("./action")
 
 module.exports = class Client
 
-  @discover: (url, callback) ->
+  @discover: (args...) ->
+    if args.length == 2
+      [url, callback] = args
+      options = {}
+    else if args.length == 3
+      [url, options, callback] = args
+
     if url.constructor != String
       throw new Error("Discovery URL must be a string")
 
-    options =
+    request =
       url: url
       method: "GET"
       headers:
         "Accept": "application/json"
 
-    Request options, (error, response, body) =>
+    if options.gzip
+      request.headers["Accept-Encoding"] = "gzip"
+
+    new Request request, (error, response) =>
       if error
         callback error
       else
-        try
-          data = JSON.parse(body)
-        catch error
-          callback "Unparseable response body: #{error.message}"
-          return
-        client = new Client(data)
-        callback null, client
+        if response.data
+          client = new Client(response.data, options)
+          callback null, client
+        else
+          callback new Error "Unparseable response body"
 
 
 
-  constructor: (@api, options={}) ->
-    {@authorizer} = options
+  constructor: (@api, @options={}) ->
+    {@authorizer, @gzip} = @options
 
     # Validate API specification
     required_fields = ["schemas", "resources", "mappings"]

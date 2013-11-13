@@ -1,10 +1,10 @@
-Request = require "request"
+Request = require "./request"
 {type} = require "fairmont"
 
 module.exports = class Action
 
   constructor: (@client, @name, @definition) ->
-    {@schema_manager, @authorizer} = @client
+    {@schema_manager, @authorizer, @gzip} = @client
 
     {request, response} = @definition
     @status = response?.status || 200
@@ -49,6 +49,9 @@ module.exports = class Action
       credential = @authorizer(auth_type, @name)
       request.headers["Authorization"] = "#{auth_type} #{credential}"
 
+    if @gzip
+      request.headers["Accept-Encoding"] = "gzip"
+
     request
 
   request: (url, args..., callback) ->
@@ -64,16 +67,15 @@ module.exports = class Action
     catch error
       callback?(error)
       return
-    Request(options, @request_handler(callback))
+    new Request options, @request_handler(callback)
 
 
   request_handler: (callback) ->
-    (error, response, body) =>
+    (error, response) =>
       if error
         callback(error)
-      else if response.statusCode == @status
+      else if response.status == @status
         if @response_schema
-          response.body = body
           try
             response.data = JSON.parse(response.body)
           catch error
@@ -82,8 +84,8 @@ module.exports = class Action
           response.resource = @client.decorate(@response_schema, response.data)
         callback null, response
       else
-        error = new Error "Unexpected response status: #{response.statusCode}"
-        error.status = response.statusCode
+        error = new Error "Unexpected response status: #{response.status}"
+        error.status = response.status
         error.response = response
         callback(error)
 
