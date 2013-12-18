@@ -27,6 +27,11 @@ Testify.test "Resource construction", (context) ->
       assert.equal user.resource_type, "user_search"
       assert.equal user.url, "http://smurf.com/user?match=dyoder"
 
+    context.test "overriding with a whole url", ->
+      url = "http://dog.com/user/automatthew"
+      user = resources.user(url)
+      assert.equal user.resource_type, "user"
+      assert.equal user.url, url
 
 
 

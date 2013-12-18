@@ -54,23 +54,27 @@ module.exports = class Client
     @resource_constructors = @create_resource_constructors(@api.resources, @api.mappings)
 
     @resources = {}
-    @create_directory(@api.mappings, @resource_constructors)
+    @create_references(@api.mappings, @resource_constructors)
 
-  # Create resource instances using the URLs supplied in the service
-  # description's mappings.
-  create_directory: (mappings, constructors) ->
+  # Create resource instances and constructor-helpers using the URLs supplied
+  # in the API mappings.
+  create_references: (mappings, constructors) ->
     for name, mapping of mappings
       do (name, mapping) =>
-        {url, query} = mapping
-        if !(url || query)
-          throw new Error "Mapping lacks a url, path, or template field"
+        {url, query, path, template} = mapping
+
+        # TODO error handling for invalid mappings
         if constructor = constructors[name]
-          if mapping.url
-            if mapping.query
-              @resources[name] = (params={}) ->
-                new constructor(params)
-            else
-              @resources[name] = new constructor(null, url: mapping.url)
+          if template || query
+            @resources[name] = (params={}) ->
+              new constructor(params)
+          else if path
+            url = @generate_url(mapping)
+            @resources[name] = new constructor(null, url: @generate_url(mapping))
+          else if url
+            @resources[name] = new constructor(null, url: url)
+          else
+            #console.log name, mapping
         else
           throw new Error "No constructor for '#{name}'"
 
@@ -78,7 +82,7 @@ module.exports = class Client
     constructor = @resource_constructors[name]
     constructor(params, {})
 
-  generate_url: (mapping, params) ->
+  generate_url: (mapping, params={}) ->
     url = @api.service_url
     if template = mapping.template
       # this should never be needed when the API is served by a
@@ -147,7 +151,9 @@ module.exports = class Client
     client = @
     constructor = (params, data={}) ->
 
-      if mapping
+      if params?.constructor == String
+        data.url = params
+      else if mapping
         {url, path, template, query} = mapping
         url ||= data.url
         data.url = client.generate_url({url, path, template, query}, params)
