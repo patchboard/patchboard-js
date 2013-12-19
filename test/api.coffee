@@ -38,12 +38,12 @@ exports.mappings =
     resource: "repositories"
   
   user_repositories:
-    path: "/user/:login/repos"
+    template: "/user/:login/repos"
     resource: "repositories"
   
   repository:
-    template: "/repos/:login/:name"
     resource: "repository"
+    template: "/repos/:login/:name"
   
   repo_search:
     path: "/repos"
@@ -164,6 +164,7 @@ exports.schema =
       mediaType: media_type("repository")
       properties:
         name: {type: "string"}
+        login: {type: "string"}
         owner: {$ref: "#/definitions/user"}
         description: {type: "string"}
         refs:

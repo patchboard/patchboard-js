@@ -155,8 +155,9 @@ module.exports = class Client
         data.url = params
       else if mapping
         {url, path, template, query} = mapping
-        url ||= data.url
-        data.url = client.generate_url({url, path, template, query}, params)
+        #url ||= data.url
+        if !data.url?
+          data.url = client.generate_url({url, path, template, query}, params)
 
       for key, value of data
         @[key] = value

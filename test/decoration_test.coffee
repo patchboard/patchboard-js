@@ -11,9 +11,11 @@ schema = client.schema_manager.find "urn:gh-knockoff#repository"
 
 repo = client.decorate schema,
   name: "jsck"
-  url: "http://gh-knockoff.com/repo/jsck"
+  url: "http://gh-knockoff.com/repos/automatthew/jsck"
   # for testing a resource as a top level property
+  login: "automatthew"
   owner:
+    url: "http://gh-knockoff.com/user/automatthew"
     login: "automatthew"
     email: "automatthew@mail.com"
   # for testing a sub-object with resources as defined properties
