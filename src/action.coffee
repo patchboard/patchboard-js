@@ -104,7 +104,7 @@ module.exports = class Action
         when "array"
           [options.content] = args
         else
-          throw new Error "Invalid arguments for action"
+          throw new Error "Invalid arguments for action; content required"
     else
       switch signature
         when ""
