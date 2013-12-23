@@ -67,12 +67,12 @@ module.exports = class Client
         if constructor = constructors[name]
           if template || query
             @resources[name] = (params={}) ->
-              new constructor(params)
+              new constructor(null, params)
           else if path
             url = @generate_url(mapping)
-            @resources[name] = new constructor(null, url: @generate_url(mapping))
+            @resources[name] = new constructor(url: @generate_url(mapping))
           else if url
-            @resources[name] = new constructor(null, url: url)
+            @resources[name] = new constructor(url: url)
           else
             #console.log name, mapping
         else
@@ -84,7 +84,10 @@ module.exports = class Client
 
   generate_url: (mapping, params={}) ->
     url = @api.service_url
-    if template = mapping.template
+    if mapping.url
+      url = mapping.url
+      path = ""
+    else if template = mapping.template
       # this should never be needed when the API is served by a
       # Patchboard Server.  Including it for client-side only
       # uses, such as the GitHub API.
@@ -104,11 +107,11 @@ module.exports = class Client
     else if mapping.path
       # Ditto above comment.
       path = mapping.path
-    else if mapping.url
-      url = mapping.url
-      path = ""
     else
-      throw new Error "Unusable URL generator: #{JSON.stringify(mapping)}"
+      throw new Error """
+        Unusable URL mapping.  Must have url, path, or template field.
+        Mapping: #{JSON.stringify(mapping, null, 2)}
+      """
 
     query_string = ""
     if query = mapping.query
@@ -149,8 +152,10 @@ module.exports = class Client
 
   resource_constructor: ({type, mapping, definition}) ->
     client = @
-    constructor = (params, data={}) ->
 
+    constructor = (data={}, params={}) ->
+
+      # resource("http://something.com/foo")
       if params?.constructor == String
         data.url = params
       else if mapping
@@ -211,7 +216,7 @@ module.exports = class Client
   decorate: (schema, data) ->
     if name = schema.id?.split("#")[1]
       if constructor = @resource_constructors[name]
-        d = data
+        _data = data
         if constructor.query
           # Some resources require query parameters to instantiate.
           # For these, we've stuck the query definition onto the
@@ -222,9 +227,10 @@ module.exports = class Client
           # TODO: this approach short circuits any further decoration
           # of resources inside the present resource.  Try to fix.
           data = (params) ->
-            new constructor params, d
+            new constructor _data, params
+
         else
-          data = new constructor(null, d)
+          data = new constructor(_data)
     return @_decorate(schema, data) || data
 
 

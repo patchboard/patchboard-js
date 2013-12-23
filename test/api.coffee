@@ -50,6 +50,16 @@ exports.mappings =
     query: search_query
     resource: "repo_search"
 
+  messages:
+    resource: "messages"
+    template: "/user/:login/messages"
+    query:
+      after:
+        required: true
+        type: "integer"
+        format: "utc-millisec"
+
+
 
 exports.resources =
 
@@ -71,6 +81,15 @@ exports.resources =
         method: "GET"
         response_schema: urn "user_list"
         status: 200
+
+  messages:
+    actions:
+      get:
+        method: "GET"
+        response:
+          type: media_type "message_list"
+          status: 200
+
 
   repository:
     actions:
@@ -158,6 +177,31 @@ exports.schema =
       type: "array"
       items: {$ref: "#/definitions/user"}
 
+    message:
+      mediaType: media_type "message"
+      type: "object"
+      properties:
+        type:
+          type: "string"
+          enum: ["status", "message"]
+        timestamp:
+          type: "integer"
+          format: "utc-millisec"
+        name:
+          description: """
+            Optionally identifies the user who sent the message"
+          """
+          type: "string"
+          maxLength: 64
+        content:
+          required: true
+          type: "string"
+          maxLength: 512
+
+    message_list:
+      type: "array"
+      items: {$ref: "#message"}
+        
 
     repository:
       extends: {$ref: "#/definitions/resource"}

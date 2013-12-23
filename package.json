@@ -16,7 +16,6 @@
     "fairmont": "~0.7.0"
   },
   "devDependencies": {
-    "testify": "0.2.x",
-    "deap": "~0.2.0"
+    "testify": "0.2.x"
   }
 }
