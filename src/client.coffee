@@ -161,10 +161,11 @@ module.exports = class Client
       else if mapping
         {url, path, template, query} = mapping
         url ||= data.url
-        data.url = client.generate_url({url, path, template, query}, params)
+        new_url = client.generate_url({url, path, template, query}, params)
 
       for key, value of data
         @[key] = value
+      @url = new_url
       return @
 
     constructor.prototype._actions = {}
