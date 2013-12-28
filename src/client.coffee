@@ -99,8 +99,9 @@ module.exports = class Client
           if string = params[key]
             out.push(string)
           else
-            string = "Missing key: '#{key}' in params: #{JSON.stringify(params)}"
-            throw new Error(string)
+            throw new Error(
+              "Missing key: '#{key}' in params: #{JSON.stringify(params)}"
+            )
         else
           out.push(part)
       path = out.join("/")
@@ -157,7 +158,7 @@ module.exports = class Client
 
       # resource("http://something.com/foo")
       if params?.constructor == String
-        data.url = params
+        new_url = params
       else if mapping
         {url, path, template, query} = mapping
         url ||= data.url
