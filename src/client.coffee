@@ -156,6 +156,7 @@ module.exports = class Client
 
     constructor = (data={}, params={}) ->
 
+      new_url = null
       # resource("http://something.com/foo")
       if params?.constructor == String
         new_url = params
@@ -166,7 +167,8 @@ module.exports = class Client
 
       for key, value of data
         @[key] = value
-      @url = new_url
+      if new_url
+        @url = new_url
       return @
 
     constructor.prototype._actions = {}
