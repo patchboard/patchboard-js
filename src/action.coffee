@@ -4,7 +4,7 @@ Request = require "./request"
 module.exports = class Action
 
   constructor: (@client, @name, @definition) ->
-    {@schema_manager, @authorizer, @gzip} = @client
+    {@schema_manager, @gzip} = @client
 
     {request, response} = @definition
     @status = response?.status || 200
@@ -45,8 +45,9 @@ module.exports = class Action
     for key, value of @_base_headers
       request.headers[key] = value
 
-    if auth_type = @definition.authorization
-      credential = @authorizer(auth_type, @name)
+    auth_type = @definition.request?.authorization
+    if auth_type && @client.authorizer
+      credential = @client.authorizer(auth_type, @name)
       request.headers["Authorization"] = "#{auth_type} #{credential}"
 
     if @gzip

@@ -84,6 +84,7 @@ module.exports = class Client
 
   generate_url: (mapping, params={}) ->
     url = @api.service_url
+    path = ""
     if mapping.url
       url = mapping.url
       path = ""
@@ -104,7 +105,7 @@ module.exports = class Client
             )
         else
           out.push(part)
-      path = out.join("/")
+      url = out.join("/")
     else if mapping.path
       # Ditto above comment.
       path = mapping.path
@@ -218,6 +219,8 @@ module.exports = class Client
 
 
   decorate: (schema, data) ->
+    # This is kind of sketchy.  We're mapping the fragment identifier of the
+    # schema's id to the resource names.
     if name = schema.id?.split("#")[1]
       if constructor = @resource_constructors[name]
         _data = data
