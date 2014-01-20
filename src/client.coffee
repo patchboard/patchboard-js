@@ -163,7 +163,8 @@ module.exports = class Client
         new_url = params
       else if mapping
         {url, path, template, query} = mapping
-        url ||= data.url
+        if data.url
+          url = data.url
         new_url = client.generate_url({url, path, template, query}, params)
 
       for key, value of data
