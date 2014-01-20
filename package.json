@@ -2,7 +2,7 @@
   "name": "patchboard-js",
   "description": "JavaScript client for Patchboard APIs",
   "author": "Matthew King",
-  "version": "0.4.0rc8",
+  "version": "0.4.0rc9",
   "repository": {
     "type": "git",
     "url": "git://github.com/automatthew/patchboard-js.git"
