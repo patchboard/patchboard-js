@@ -22,14 +22,14 @@ module.exports = class Client
       headers:
         "Accept": "application/json"
 
-    if options.gzip
+    if options.gzip?
       request.headers["Accept-Encoding"] = "gzip"
 
     new Request request, (error, response) =>
-      if error
+      if error?
         callback error
       else
-        if response.data
+        if response.data?
           client = new Client(response.data, options)
           callback null, client
         else
@@ -64,14 +64,14 @@ module.exports = class Client
         {url, query, path, template} = mapping
 
         # TODO error handling for invalid mappings
-        if constructor = constructors[name]
-          if template || query
+        if (constructor = constructors[name])?
+          if template? || query?
             @resources[name] = (params={}) ->
               new constructor(null, params)
-          else if path
+          else if path?
             url = @generate_url(mapping)
             @resources[name] = new constructor(url: @generate_url(mapping))
-          else if url
+          else if url?
             @resources[name] = new constructor(url: url)
           else
             #console.log name, mapping
@@ -85,10 +85,10 @@ module.exports = class Client
   generate_url: (mapping, params={}) ->
     url = @api.service_url
     path = ""
-    if mapping.url
+    if mapping.url?
       url = mapping.url
       path = ""
-    else if template = mapping.template
+    else if (template = mapping.template)?
       # this should never be needed when the API is served by a
       # Patchboard Server.  Including it for client-side only
       # uses, such as the GitHub API.
@@ -97,7 +97,7 @@ module.exports = class Client
       for part in parts
         if part.indexOf(":") == 0
           key = part.slice(1)
-          if string = params[key]
+          if (string = params[key])?
             out.push(string)
           else
             throw new Error(
@@ -106,7 +106,7 @@ module.exports = class Client
         else
           out.push(part)
       url = out.join("/")
-    else if mapping.path
+    else if mapping.path?
       # Ditto above comment.
       path = mapping.path
     else
@@ -116,12 +116,12 @@ module.exports = class Client
       """
 
     query_string = ""
-    if query = mapping.query
+    if (query = mapping.query)?
       parts = []
       keys = Object.keys(query).sort()
       for key in keys
         schema = query[key]
-        if string = params[key]
+        if (string = params[key])?
           parts.push "#{key}=#{string}"
       if parts.length > 0
         query_string = "?#{parts.join('&')}"
@@ -141,12 +141,12 @@ module.exports = class Client
     for name, mapping of mappings
       type = mapping.resource
       definition = definitions[type]
-      if !definition
+      if !definition?
         throw new Error "No resource defined for '#{type}'"
       constructor = @resource_constructor({type, mapping, definition})
       constructors[name] = constructor
 
-      if definition.aliases
+      if definition.aliases?
         for alias in definition.aliases
           constructors[alias] = constructor
 
@@ -161,21 +161,21 @@ module.exports = class Client
       # resource("http://something.com/foo")
       if params?.constructor == String
         new_url = params
-      else if mapping
+      else if mapping?
         {url, path, template, query} = mapping
-        if data.url
+        if data.url?
           url = data.url
         new_url = client.generate_url({url, path, template, query}, params)
 
       for key, value of data
         @[key] = value
-      if new_url
+      if new_url?
         @url = new_url
       return @
 
     constructor.prototype._actions = {}
     constructor.prototype.resource_type = type
-    if mapping?.query
+    if mapping?.query?
       constructor.query = mapping.query
 
     # Hide the Patchboard client from such things as console.log
@@ -211,7 +211,7 @@ module.exports = class Client
       for header, value of headers when header != "User-Agent"
         command.push "  -H '#{header}: #{value}'"
 
-      if body
+      if body?
         command.push "  -d '#{JSON.stringify(body)}'"
       command.push "  #{url}"
       command.join(" \\\n")
@@ -222,10 +222,10 @@ module.exports = class Client
   decorate: (schema, data) ->
     # This is kind of sketchy.  We're mapping the fragment identifier of the
     # schema's id to the resource names.
-    if name = schema.id?.split("#")[1]
-      if constructor = @resource_constructors[name]
+    if (name = schema.id?.split("#")[1])?
+      if (constructor = @resource_constructors[name])?
         _data = data
-        if constructor.query
+        if constructor.query?
           # Some resources require query parameters to instantiate.
           # For these, we've stuck the query definition onto the
           # constructor.  For these cases, we substitute a simple
@@ -243,19 +243,19 @@ module.exports = class Client
 
 
   _decorate: (schema, data) ->
-    if !schema || !data
+    if !schema? || !data?
       return
     if ref = schema.$ref
-      if schema = @schema_manager.find(ref)
+      if (schema = @schema_manager.find(ref))?
         @decorate(schema, data)
       else
         console.error "Can't find ref:", ref
         data
     else
       if schema.type == "array"
-        if schema.items
+        if schema.items?
           for item, i in data
-            if result = @decorate(schema.items, item)
+            if (result = @decorate(schema.items, item))?
               data[i] = result
       else
         switch schema.type
@@ -264,10 +264,10 @@ module.exports = class Client
           else
             # Declared properties
             for key, value of schema.properties
-              if result = @decorate(value, data[key])
+              if (result = @decorate(value, data[key]))?
                 data[key] = result
             # Default for undeclared properties
-            if addprop = schema.additionalProperties
+            if (addprop = schema.additionalProperties)?
               for key, value of data
                 unless schema.properties?[key]
                   data[key] = @decorate(addprop, value)

@@ -29,7 +29,7 @@ module.exports = class Request
       method: @method
       headers: @headers
 
-    if @body && Buffer?
+    if @body? && Buffer?
       @headers["Content-Length"] = Buffer.byteLength(@body)
 
     raw = client.request parameters, (response) =>
@@ -44,11 +44,11 @@ module.exports = class Request
     raw.on "error", (error) =>
       callback error
 
-    if timeout
+    if timeout?
       raw.setTimeout timeout, =>
         raw.abort()
 
-    if @body
+    if @body?
       raw.write @body.toString()
     raw.end()
 
@@ -60,7 +60,7 @@ module.exports = class Request
       callback new Error "Exceeded allowed number of redirects"
     else
       location = response.headers["Location"] || response.headers["location"]
-      if location
+      if location?
         new Request {
           url: location
           redirects: redirects - 1
@@ -124,7 +124,7 @@ class ResponseContent
       @process_type callback
 
   process_encoding: (callback) ->
-    if @encoding && zlib
+    if @encoding? && zlib?
       zlib.gunzip @buffer, (error, buffer) =>
         @body = buffer.toString("utf-8")
         callback()
@@ -133,8 +133,8 @@ class ResponseContent
       callback()
 
   process_type: (callback) ->
-    if @type
-      if /json/.test @type
+    if @type?
+      if /json/.test(@type)
         try
           @data = JSON.parse(@body)
         catch error

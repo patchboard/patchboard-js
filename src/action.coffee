@@ -8,10 +8,10 @@ module.exports = class Action
 
     {request, response} = @definition
     @status = response?.status || 200
-    if request?.type
+    if request?.type?
       @request_schema = @schema_manager.find mediaType: request.type
 
-    if response?.type
+    if response?.type?
       @response_schema = @schema_manager.find mediaType: response.type
 
     @_base_headers = @base_headers(@definition)
@@ -21,11 +21,11 @@ module.exports = class Action
     headers =
       "User-Agent": "patchboard-js"
 
-    if @request_schema
+    if @request_schema?
       headers["Content-Type"] = @request_schema.mediaType
 
     # FIXME:  we should also check for definition.accept
-    if @response_schema
+    if @response_schema?
       headers["Accept"] = @response_schema.mediaType
 
     headers
@@ -39,18 +39,18 @@ module.exports = class Action
       method: @definition.method
       headers: {}
 
-    if body = @prepare_body(options)
+    if (body = @prepare_body(options))?
       request.body = body
 
     for key, value of @_base_headers
       request.headers[key] = value
 
     auth_type = @definition.request?.authorization
-    if auth_type && @client.authorizer
+    if auth_type? && @client.authorizer?
       credential = @client.authorizer(auth_type, @name)
       request.headers["Authorization"] = "#{auth_type} #{credential}"
 
-    if @gzip
+    if @gzip?
       request.headers["Accept-Encoding"] = "gzip"
 
     request
@@ -59,7 +59,7 @@ module.exports = class Action
     if !callback?
       # TODO: rewire for EventEmitter
       callback = (error, response) =>
-        if error
+        if error?
           console.error error
         else
           console.log response.body
@@ -73,10 +73,10 @@ module.exports = class Action
 
   request_handler: (callback) ->
     (error, response) =>
-      if error
+      if error?
         callback(error)
       else if response.status == @status
-        if @response_schema
+        if @response_schema?
           try
             response.data = JSON.parse(response.body)
           catch error
@@ -96,7 +96,7 @@ module.exports = class Action
     signature = (args.map (arg) -> type(arg)).join(".")
 
     content_required = @request_schema
-    if content_required
+    if content_required?
       switch signature
         when "string"
           [options.body] = args
@@ -116,9 +116,9 @@ module.exports = class Action
 
 
   prepare_body: (options) ->
-    if options.content
+    if options.content?
       JSON.stringify(options.content)
-    else if options.body
+    else if options.body?
       options.body
     else
       undefined

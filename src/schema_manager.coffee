@@ -7,7 +7,7 @@ module.exports = class SchemaManager
       # `definitions` is the conventional place to put schemas,
       # so we'll define fragment IDs by default where they are
       # not explicitly specified.
-      if definitions = schema.definitions
+      if (definitions = schema.definitions)?
         for name, definition of definitions
           definition.id ||= "##{name}"
 
