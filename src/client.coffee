@@ -212,7 +212,7 @@ module.exports = class Client
         command.push "  -H '#{header}: #{value}'"
 
       if body?
-        command.push "  -d '#{JSON.stringify(body)}'"
+        command.push "  -d #{JSON.stringify(body)}"
       command.push "  #{url}"
       command.join(" \\\n")
 
