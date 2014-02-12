@@ -267,7 +267,7 @@ module.exports = class Client
               if (result = @decorate(value, data[key]))?
                 data[key] = result
             # Default for undeclared properties
-            if (addprop = schema.additionalProperties)?
+            if addprop = schema.additionalProperties
               for key, value of data
                 unless schema.properties?[key]
                   data[key] = @decorate(addprop, value)
