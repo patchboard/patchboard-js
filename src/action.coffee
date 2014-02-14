@@ -1,5 +1,6 @@
 Request = require "./request"
 {type} = require "fairmont"
+{Evie} = require "evie"
 
 module.exports = class Action
 
@@ -55,20 +56,33 @@ module.exports = class Action
 
     request
 
-  request: (url, args..., callback) ->
-    if !callback?
-      # TODO: rewire for EventEmitter
+  #request: (url, args..., callback) ->
+  request: (url, args...) ->
+    events = new Evie()
+    [_args..., callback] = args
+    if typeof(callback) == "function"
+      args = _args
+    else
       callback = (error, response) =>
         if error?
           console.error error
-        else
-          console.log response.body
+
     try
       options = @create_request(url, args...)
     catch error
+      console.log error
       callback?(error)
       return
-    new Request options, @request_handler(callback)
+
+    handler = @request_handler (error, response) =>
+      callback(error, response)
+      if error?
+        events.emit "error", error
+      else
+        events.emit "success", response
+
+    new Request options, handler
+    events
 
 
   request_handler: (callback) ->
