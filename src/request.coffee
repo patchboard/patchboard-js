@@ -6,14 +6,16 @@ try
 catch error
   zlib = null
 
+{Evie} = require "evie"
+
 corsetCase = (string) ->
   string.toLowerCase()
     .replace("_", "-")
     .replace /(^|-)(\w)/g, (s) -> s.toUpperCase()
 
-module.exports = class Request
+module.exports = class Request extends Evie
 
-  constructor: (options, callback) ->
+  constructor: (options, handler) ->
     {@url, @method, @headers, @body, timeout, @redirects} = options
     @method = @method.toUpperCase()
     @redirects ?= 1
@@ -31,6 +33,14 @@ module.exports = class Request
 
     if @body? && Buffer?
       @headers["Content-Length"] = Buffer.byteLength(@body)
+
+    callback = (error, response) =>
+      if handler?
+        handler(error, response)
+      if error?
+        @emit "error", error
+      else
+        @emit "success", response
 
     raw = client.request parameters, (response) =>
       switch response.statusCode

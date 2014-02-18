@@ -63,46 +63,38 @@ module.exports = class Action
     if typeof(callback) == "function"
       args = _args
     else
-      callback = (error, response) =>
-        if error?
-          console.error error
+      callback = undefined
 
     try
       options = @create_request(url, args...)
     catch error
-      console.log error
       callback?(error)
+      events.emit "error", error
       return
 
-    handler = @request_handler (error, response) =>
-      callback(error, response)
-      if error?
+    request = new Request options
+    request.on "error", (error) =>
+      callback?(error)
+      events.emit "error", error
+    request.on "success", (response) =>
+      if response.status != @status
+        error = new Error "Unexpected response status: #{response.status}"
+        error.status = response.status
+        error.response = response
+        callback?(error)
         events.emit "error", error
       else
-        events.emit "success", response
-
-    new Request options, handler
-    events
-
-
-  request_handler: (callback) ->
-    (error, response) =>
-      if error?
-        callback(error)
-      else if response.status == @status
         if @response_schema?
           try
             response.data = JSON.parse(response.body)
           catch error
-            callback "Unparseable response body: #{error.message}"
+            error = new Error "Unparseable response body"
             return
           response.resource = @client.decorate(@response_schema, response.data)
-        callback null, response
-      else
-        error = new Error "Unexpected response status: #{response.status}"
-        error.status = response.status
-        error.response = response
-        callback(error)
+          callback?(null, response)
+          events.emit "success", response
+
+    events
 
 
   process_args: (args) ->

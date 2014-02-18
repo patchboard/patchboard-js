@@ -5,6 +5,7 @@ SchemaManager = require("./schema_manager")
 Action = require("./action")
 
 module.exports = class Client
+  @Request = Request
 
   @discover: (args...) ->
     if args.length == 2
