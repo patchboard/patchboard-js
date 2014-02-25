@@ -33,11 +33,6 @@ Testify.test "Resource construction", (context) ->
       assert.equal user.resource_type, "user"
       assert.equal user.url, url
 
-    context.test "mapping.template AND mapping.query", ->
-      ts = Date.now()
-      messages = resources.messages(login: "dyoder", after: ts)
-      assert.equal messages.url, "http://smurf.com/user/dyoder/messages?after=#{ts}"
-
 
 
 

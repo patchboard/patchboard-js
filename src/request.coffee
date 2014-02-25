@@ -17,6 +17,7 @@ module.exports = class Request extends Evie
 
   constructor: (options, handler) ->
     {@url, @method, @headers, @body, timeout, @redirects} = options
+    @headers ?= {}
     @method = @method.toUpperCase()
     @redirects ?= 1
     # TODO: allow query params as object in options

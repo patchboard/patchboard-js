@@ -5,7 +5,7 @@ SchemaManager = require "../src/schema_manager"
 Action = require "../src/action"
 
 {api} = require "./helpers"
-{media_type} = api
+{type} = api
 schema_manager = new SchemaManager(api.schemas...)
 client = {schema_manager}
 
@@ -45,8 +45,8 @@ Testify.test "Action", (context) ->
     headers = action.base_headers()
     assert.deepEqual headers,
       "User-Agent": "patchboard-js"
-      "Accept": media_type("user")
-      "Content-Type": media_type("user")
+      "Accept": type("user")
+      "Content-Type": type("user")
 
 
   context.test "process_args()", (context) ->

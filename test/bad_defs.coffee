@@ -52,12 +52,6 @@ Testify.test "invalid API definitions", (context) ->
       api.schemas[0].definitions.smurf_list.items = {$ref: "#/definitions/dwarf"}
       new Client api
 
-  context.test "invalid reference in resources", ->
-    assert.throws ->
-      api = deap.clone(base_api)
-      api.resources.smurf.actions.get.response_schema = "urn:smurf#dwarf"
-      new Client api
-
   context.test "invalid reference in mappings", ->
     assert.throws ->
       api = deap.clone(base_api)

@@ -106,7 +106,7 @@ module.exports = class Client
             )
         else
           out.push(part)
-      url = out.join("/")
+      url = url + out.join("/")
     else if mapping.path?
       # Ditto above comment.
       path = mapping.path
@@ -140,7 +140,11 @@ module.exports = class Client
       constructors[type] = constructor
 
     for name, mapping of mappings
-      type = mapping.resource
+      if !(type = mapping.resource)?
+        throw new Error "Mapping does not specify 'resource'"
+      if !(mapping.url? || mapping.path? || mapping.template?)
+        throw new Error "Mapping is missing any form of URL specification"
+
       definition = definitions[type]
       if !definition?
         throw new Error "No resource defined for '#{type}'"

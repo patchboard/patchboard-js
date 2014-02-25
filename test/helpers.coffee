@@ -1,9 +1,9 @@
-api = require("./api")
+api = require("../../patchboard/src/example_api")
 module.exports =
   api:
     service_url: "http://smurf.com"
     mappings: api.mappings
     resources: api.resources
     schemas: [api.schema]
-    media_type: api.media_type
+    type: api.type
 
