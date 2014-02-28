@@ -63,7 +63,7 @@ module.exports = class Client
     constructors = {}
 
     for name, mapping of mappings
-      definition = mapping.resource_definition
+      definition = mapping.resource
       constructor = @resource_constructor({mapping, definition})
       mapping.constructor = constructor
       constructors[name] = constructor

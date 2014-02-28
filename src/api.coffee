@@ -6,14 +6,15 @@ module.exports = class API
     if !(mappings && @resources && @schemas)
       throw new Error("API specification must provide mappings, resources, and schemas")
 
-    @schema_manager = new SchemaManager(@schemas...)
+    @mappings = {}
+    for name, mapping of mappings
+      @mappings[name] = new Mapping(@, mapping)
 
     for name, definition of @resources
       definition.name = name
 
-    @mappings = {}
-    for name, mapping of mappings
-      @mappings[name] = new Mapping(@, mapping)
+    @schema_manager = new SchemaManager(@schemas...)
+
 
   decorate: (schema, data) ->
     # Determine the resource by following the schema "name" to the mappings,
@@ -82,7 +83,7 @@ class Mapping
       throw new Error "Mapping is missing any form of URL specification"
     if !(resource = api.resources[@resource])?
       throw new Error "Mapping specifies a resource that is not defined"
-    @resource_definition = resource
+    @resource = resource
 
   generate_url: (params={}) ->
     url = @service_url

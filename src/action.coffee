@@ -5,15 +5,15 @@ Request = require "./request"
 module.exports = class Action
 
   constructor: (@client, @name, @definition) ->
-    {@schema_manager} = @client.api
+    {@api} = @client
 
     {request, response} = @definition
     @status = response?.status || 200
     if request?.type?
-      @request_schema = @schema_manager.find mediaType: request.type
+      @request_schema = @api.schema_manager.find mediaType: request.type
 
     if response?.type?
-      @response_schema = @schema_manager.find mediaType: response.type
+      @response_schema = @api.schema_manager.find mediaType: response.type
 
     @_base_headers = @base_headers(@definition)
 
@@ -93,7 +93,7 @@ module.exports = class Action
           catch error
             error = new Error "Unparseable response body"
             return
-          response.resource = @client.api.decorate(@response_schema, response.data)
+          response.resource = @api.decorate(@response_schema, response.data)
           callback?(null, response)
           events.emit "success", response
 
