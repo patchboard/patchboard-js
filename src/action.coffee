@@ -5,7 +5,7 @@ Request = require "./request"
 module.exports = class Action
 
   constructor: (@client, @name, @definition) ->
-    {@schema_manager, @gzip} = @client
+    {@schema_manager} = @client.api
 
     {request, response} = @definition
     @status = response?.status || 200
@@ -53,9 +53,6 @@ module.exports = class Action
       credential = @client.authorizer(auth_type, @name)
       request.headers["Authorization"] = "#{auth_type} #{credential}"
 
-    if @gzip?
-      request.headers["Accept-Encoding"] = "gzip"
-
     request
 
   #request: (url, args..., callback) ->
@@ -96,7 +93,7 @@ module.exports = class Action
           catch error
             error = new Error "Unparseable response body"
             return
-          response.resource = @client.decorate(@response_schema, response.data)
+          response.resource = @client.api.decorate(@response_schema, response.data)
           callback?(null, response)
           events.emit "success", response
 
