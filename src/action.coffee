@@ -22,6 +22,8 @@ module.exports = class Action
     headers =
       "User-Agent": "patchboard-js"
 
+    # FIXME: We should probably always set these headers when the 
+    # definition includes response and request types.
     if @request_schema?
       headers["Content-Type"] = @request_schema.mediaType
 
@@ -62,6 +64,10 @@ module.exports = class Action
     [_args..., callback] = args
     if typeof(callback) == "function"
       args = _args
+      # swallow emitted errors if a callback was given.
+      # Necessary because Node EventEmitter, on which Evie is based,
+      # crashes if an error event is unhandled.
+      events.on "error", (error) ->
     else
       callback = undefined
 

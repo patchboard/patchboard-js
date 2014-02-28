@@ -4,6 +4,81 @@ SchemaManager = require("./schema_manager")
 
 Action = require("./action")
 
+class API
+
+  constructor: ({mappings, @resources, @schemas}) ->
+    if !(mappings && @resources && @schemas)
+      throw new Error("API specification must provide mappings, resources, and schemas")
+
+    for name, definition of @resources
+      definition.name = name
+
+    @mappings = {}
+    for name, mapping of mappings
+      @mappings[name] = new Mapping(@, mapping)
+
+
+class Mapping
+  constructor: (api, {@name, @resource, @url, @template, @path, @query}) ->
+    {@service_url} = api
+    if !@resource?
+      throw new Error "Mapping does not specify 'resource'"
+    if !(@url? || @path? || @template?)
+      throw new Error "Mapping is missing any form of URL specification"
+    if !(resource = api.resources[@resource])?
+      throw new Error "Mapping specifies a resource that is not defined"
+    @resource_definition = resource
+
+  generate_url: (params={}) ->
+    url = @service_url
+    path = ""
+    if params.url
+      url = params.url
+    else if @url?
+      url = @url
+    else if (template = @template)?
+      # this should never be needed when the API is served by a
+      # Patchboard Server.  Including it for client-side only
+      # uses, such as the GitHub API.
+      parts = template.split("/")
+      out = []
+      for part in parts
+        if part.indexOf(":") == 0
+          key = part.slice(1)
+          if (string = params[key])?
+            out.push(string)
+          else
+            throw new Error(
+              "Missing key: '#{key}' in params: #{JSON.stringify(params)}"
+            )
+        else
+          out.push(part)
+      url = url + out.join("/")
+    else if @path?
+      # Ditto above comment.
+      path = @path
+    else
+      throw new Error """
+        Unusable URL mapping.  Must have url, path, or template field.
+        Mapping: #{JSON.stringify(@, null, 2)}
+      """
+
+    query_string = ""
+    if (query = @query)?
+      parts = []
+      keys = Object.keys(query).sort()
+      for key in keys
+        schema = query[key]
+        if (string = params[key])?
+          parts.push "#{key}=#{string}"
+      if parts.length > 0
+        query_string = "?#{parts.join('&')}"
+      else
+        query_string = ""
+
+    encodeURI(url + path + query_string)
+
+
 module.exports = class Client
   @Request = Request
 
@@ -38,117 +113,41 @@ module.exports = class Client
 
 
 
-  constructor: (@api, @options={}) ->
+  constructor: (api, @options={}) ->
     {@authorizer, @gzip} = @options
-
-    # Validate API specification
-    required_fields = ["schemas", "resources", "mappings"]
-    missing_fields = []
-    for field in required_fields
-      unless @api[field]
-        missing_fields.push(field)
-
-    if missing_fields.length != 0
-      throw new Error("API specification is missing fields: #{missing_fields.join(', ')}")
+    @api = new API(api)
 
     @schema_manager = new SchemaManager(@api.schemas...)
-    @resource_constructors = @create_resource_constructors(@api.resources, @api.mappings)
+    @create_resource_constructors(@api.resources, @api.mappings)
 
-    @resources = {}
-    @create_references(@api.mappings, @resource_constructors)
+    @resources = @create_endpoints(@api.mappings)
 
   # Create resource instances and constructor-helpers using the URLs supplied
   # in the API mappings.
-  create_references: (mappings, constructors) ->
+  create_endpoints: (mappings) ->
+    endpoints = {}
     for name, mapping of mappings
       do (name, mapping) =>
         {url, query, path, template} = mapping
-
-        # TODO error handling for invalid mappings
-        if (constructor = constructors[name])?
-          if template? || query?
-            @resources[name] = (params={}) ->
-              new constructor(null, params)
-          else if path?
-            url = @generate_url(mapping)
-            @resources[name] = new constructor(url: @generate_url(mapping))
-          else if url?
-            @resources[name] = new constructor(url: url)
-          else
-            #console.log name, mapping
+        constructor = mapping.constructor
+        if template? || query?
+          endpoints[name] = (params={}) ->
+            new constructor {url: mapping.generate_url(params)}
+        else if path?
+          endpoints[name] = new constructor(url: mapping.generate_url())
+        else if url?
+          endpoints[name] = new constructor(url: url)
         else
-          throw new Error "No constructor for '#{name}'"
-
-  create: (name, params) ->
-    constructor = @resource_constructors[name]
-    constructor(params, {})
-
-  generate_url: (mapping, params={}) ->
-    url = @api.service_url
-    path = ""
-    if mapping.url?
-      url = mapping.url
-      path = ""
-    else if (template = mapping.template)?
-      # this should never be needed when the API is served by a
-      # Patchboard Server.  Including it for client-side only
-      # uses, such as the GitHub API.
-      parts = template.split("/")
-      out = []
-      for part in parts
-        if part.indexOf(":") == 0
-          key = part.slice(1)
-          if (string = params[key])?
-            out.push(string)
-          else
-            throw new Error(
-              "Missing key: '#{key}' in params: #{JSON.stringify(params)}"
-            )
-        else
-          out.push(part)
-      url = url + out.join("/")
-    else if mapping.path?
-      # Ditto above comment.
-      path = mapping.path
-    else
-      throw new Error """
-        Unusable URL mapping.  Must have url, path, or template field.
-        Mapping: #{JSON.stringify(mapping, null, 2)}
-      """
-
-    query_string = ""
-    if (query = mapping.query)?
-      parts = []
-      keys = Object.keys(query).sort()
-      for key in keys
-        schema = query[key]
-        if (string = params[key])?
-          parts.push "#{key}=#{string}"
-      if parts.length > 0
-        query_string = "?#{parts.join('&')}"
-      else
-        query_string = ""
-
-    encodeURI(url + path + query_string)
-
+          console.error "Unexpected mapping:", name, mapping
+    endpoints
 
   create_resource_constructors: (definitions, mappings) ->
     constructors = {}
 
-    for type, definition of definitions
-      constructor = @resource_constructor({type, definition})
-      constructors[type] = constructor
-
     for name, mapping of mappings
-      if !(type = mapping.resource)?
-        throw new Error "Mapping does not specify 'resource'"
-      if !(mapping.url? || mapping.path? || mapping.template?)
-        throw new Error "Mapping is missing any form of URL specification"
-
-      definition = definitions[type]
-      if !definition?
-        throw new Error "No resource defined for '#{type}'"
-      constructor = @resource_constructor({type, mapping, definition})
+      definition = mapping.resource_definition
+      constructor = @resource_constructor({mapping, definition})
+      mapping.constructor = constructor
       constructors[name] = constructor
 
       if definition.aliases?
@@ -157,46 +156,35 @@ module.exports = class Client
 
     constructors
 
-  resource_constructor: ({type, mapping, definition}) ->
+  resource_constructor: ({mapping, definition}) ->
     client = @
-
-    constructor = (data={}, params={}) ->
-
-      new_url = null
-      # resource("http://something.com/foo")
-      if params?.constructor == String
-        new_url = params
-      else if mapping?
-        {url, path, template, query} = mapping
-        if data.url?
-          url = data.url
-        new_url = client.generate_url({url, path, template, query}, params)
-
-      for key, value of data
-        @[key] = value
-      if new_url?
-        @url = new_url
+    constructor = (data={}) ->
+      if data?.constructor == String
+        # for cases like: resource("http://something.com/foo")
+        @url = data
+      else
+        for key, value of data
+          @[key] = value
       return @
 
     constructor.prototype._actions = {}
-    constructor.prototype.resource_type = type
-    if mapping?.query?
-      constructor.query = mapping.query
+    constructor.prototype.resource_type = definition.name
 
     # Hide the Patchboard client from such things as console.log
     Object.defineProperty constructor.prototype, "patchboard_client",
       value: @
       enumerable: false
 
-    # Mix in default resource methods
-    for name, method of @resource_methods
-      constructor.prototype[name] = method
-
     for name, def of definition.actions
       do (name, def) ->
         action = constructor.prototype._actions[name] = new Action(client, name, def)
         constructor.prototype[name] = (args...) ->
           action.request(@url, args...)
+
+    # Mix in default resource methods
+    for name, method of @resource_methods
+      constructor.prototype[name] = method
+
 
     constructor
 
@@ -225,22 +213,23 @@ module.exports = class Client
 
 
   decorate: (schema, data) ->
-    # This is kind of sketchy.  We're mapping the fragment identifier of the
-    # schema's id to the resource names.
+    # Determine the resource by following the schema "name" to the mappings,
+    # which define the resource names.
     if (name = schema.id?.split("#")[1])?
-      if (constructor = @resource_constructors[name])?
+      if (mapping = @api.mappings[name])?
+        constructor = mapping.constructor
         _data = data
-        if constructor.query?
+        if mapping.query?
           # Some resources require query parameters to instantiate.
           # For these, we've stuck the query definition onto the
           # constructor.  For these cases, we substitute a simple
           # function for the property.
           # In usage, this looks like:
           #   user.repository(name: "patchboard").update(content, callback)
-          # TODO: this approach short circuits any further decoration
-          # of resources inside the present resource.  Try to fix.
           data = (params) ->
-            new constructor _data, params
+            if _data.url?
+              params.url = _data.url
+            new constructor {url: mapping.generate_url(params)}
 
         else
           data = new constructor(_data)
