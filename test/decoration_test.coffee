@@ -7,9 +7,9 @@ Client = require "../src/client"
 
 client = new Client(api)
 
-schema = client.schema_manager.find "urn:gh-knockoff#repository"
+schema = client.api.schema_manager.find "urn:gh-knockoff#repository"
 
-repo = client.decorate schema,
+data =
   name: "jsck"
   url: "http://gh-knockoff.com/repos/automatthew/jsck"
   # for testing a resource as a top level property
@@ -43,6 +43,8 @@ repo = client.decorate schema,
       }
     ]
 
+repo = client.api.decorate schema, data
+#require("fs").writeFileSync("dectest.json", JSON.stringify(data, null, 2)
 
 assert_properties = (object, names) ->
   for name in names

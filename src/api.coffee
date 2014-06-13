@@ -2,7 +2,7 @@ SchemaManager = require("./schema_manager")
 
 module.exports = class API
 
-  constructor: ({mappings, @resources, @schemas}) ->
+  constructor: ({@service_url, mappings, @resources, @schemas}) ->
     if !(mappings && @resources && @schemas)
       throw new Error("API specification must provide mappings, resources, and schemas")
 
@@ -74,11 +74,11 @@ module.exports = class API
 
 
 
-class Mapping
+API.Mapping = class Mapping
   constructor: (api, {@name, @resource, @url, @template, @path, @query}) ->
     {@service_url} = api
     if !@resource?
-      throw new Error "Mapping does not specify 'resource'"
+      @resource = @name
     if !(@url? || @path? || @template?)
       throw new Error "Mapping is missing any form of URL specification"
     if !(resource = api.resources[@resource])?
@@ -88,7 +88,9 @@ class Mapping
   generate_url: (params={}) ->
     url = @service_url
     path = ""
-    if params.url
+    if params.constructor == String
+      url = params
+    else if params.url
       url = params.url
     else if @url?
       url = @url

@@ -7,7 +7,7 @@ Action = require "../src/action"
 {api} = require "./helpers"
 {type} = api
 schema_manager = new SchemaManager(api.schemas...)
-client = {schema_manager}
+client = {api: {schema_manager}}
 
 # helper functions
 

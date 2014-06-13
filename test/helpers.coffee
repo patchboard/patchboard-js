@@ -1,4 +1,4 @@
-api = require("../../patchboard/src/example_api")
+api = require("../../patchboard/src/example_api.coffee")
 module.exports =
   api:
     service_url: "http://smurf.com"
