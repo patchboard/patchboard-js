@@ -1,5 +1,14 @@
-{assert} = require "fairmont"
+assert = require "assert"
+check_type = require("fairmont").type
 Testify = require "testify"
+
+assert.type = (value, string) ->
+  assert.equal check_type(value), string
+
+assert.keys = (object, keys) ->
+  assert.type object, "object"
+  assert.deepEqual Object.keys(object).sort(), keys.sort()
+
 
 SchemaManager = require "../src/schema_manager"
 Action = require "../src/action"
