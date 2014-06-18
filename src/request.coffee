@@ -26,7 +26,7 @@ module.exports = class Request extends Evie
     client = (if protocol is "http:" then http else https)
 
     parameters =
-      hostname: hostname
+      host: hostname
       port: port
       path: path
       method: @method
