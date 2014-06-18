@@ -27,7 +27,7 @@ module.exports = class Client
       else
         if response.data?
           client = new Client(response.data, options)
-          callback null, client
+          callback client
         else
           callback new Error "Unparseable response body"
 
