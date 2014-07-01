@@ -93,9 +93,15 @@ module.exports = class Action
           catch error
             error = new Error "Unparseable response body"
             return
-          response.resource = @api.decorate(@response_schema, response.data)
-          callback?(null, response)
-          events.emit "success", response
+          resource = @api.decorate(@response_schema, response.data)
+          resource.response = response
+
+          # For backwards compatibility.  Removable when we bump the
+          # minor version from 0.4 to 0.5.
+          resource.resource = resource
+
+          callback?(null, resource)
+          events.emit "success", resource
 
     events
 
