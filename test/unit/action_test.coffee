@@ -10,12 +10,11 @@ assert.keys = (object, keys) ->
   assert.deepEqual Object.keys(object).sort(), keys.sort()
 
 
-SchemaManager = require "../src/schema_manager"
-Action = require "../src/action"
-
-{api} = require "./helpers"
+{api, SchemaManager, Action} = require "../helpers"
 {type} = api
+
 schema_manager = new SchemaManager(api.schemas...)
+
 client = {api: {schema_manager}}
 
 # helper functions

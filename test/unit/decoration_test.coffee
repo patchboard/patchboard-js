@@ -1,9 +1,7 @@
 assert = require "assert"
 Testify = require "testify"
 
-Client = require "../src/client"
-
-{api} = require "./helpers"
+{api, Client} = require "../helpers"
 
 client = new Client(api)
 
