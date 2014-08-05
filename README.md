@@ -14,7 +14,7 @@ Client.discover "http://api.wherever.com/", (error, client) ->
       if error
         console.error error
       else
-        user.update {email: "matthew@mail.com}, (error, response) ->
+        user.update {email: "matthew@mail.com"}, (error, response) ->
   else
     console.error error
 ```
