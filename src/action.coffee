@@ -55,7 +55,6 @@ module.exports = class Action
 
     request
 
-  #request: (url, args..., callback) ->
   request: (url, args...) ->
     events = new Evie()
     [_args..., callback] = args

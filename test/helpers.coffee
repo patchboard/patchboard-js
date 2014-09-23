@@ -1,4 +1,4 @@
-api = require("../../patchboard/src/example_api.coffee")
+api = require "../node_modules/patchboard-api/src/test_api.coffee"
 
 module.exports =
   api:
