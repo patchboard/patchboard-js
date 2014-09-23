@@ -93,9 +93,10 @@ module.exports = class Action
             error = new Error "Unparseable response body"
             return
           resource = @api.decorate(@response_schema, response.data)
-          resource.response = response
+          Object.defineProperty resource, "response",
+            value: response
+            enumerable: false
 
-          resource.resource = resource
 
           callback?(null, resource)
           events.emit "success", resource

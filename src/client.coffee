@@ -2,7 +2,7 @@ Request = require "./request"
 API = require "./api"
 Action = require("./action")
 
-module.exports = class Client
+module.exports = class Patchboard
   @Request = Request
 
   @discover: (args...) ->
@@ -15,18 +15,18 @@ module.exports = class Client
     if url.constructor != String
       throw new Error("Discovery URL must be a string")
 
-    options =
+    req =
       url: url
       method: "GET"
       headers:
         "Accept": "application/json"
 
-    new Request options, (error, response) =>
+    new Request req, (error, response) =>
       if error?
         callback error
       else
         if response.data?
-          client = new Client(response.data, options)
+          client = new @(response.data, options)
           callback null, client
         else
           callback new Error "Unparseable response body"
@@ -34,30 +34,51 @@ module.exports = class Client
 
 
   constructor: (api, @options={}) ->
-    {@authorizer} = @options
+    {@authorizer, context} = @options
+    @context_creator = context
     @api = new API(api)
 
     @create_resource_constructors(@api.resources, @api.mappings)
-    @resources = @create_endpoints(@api.mappings)
+    client = @spawn()
+    @resources = client.resources
+    @context = client.context
+    #@resources = @create_endpoints(@api.mappings)
 
-  # Create resource instances and constructor-helpers using the URLs supplied
-  # in the API mappings.
-  create_endpoints: (mappings) ->
-    endpoints = {}
-    for name, mapping of mappings
-      do (name, mapping) =>
-        {url, query, path, template} = mapping
-        constructor = mapping.constructor
-        if template? || query?
-          endpoints[name] = (params={}) ->
-            new constructor {url: mapping.generate_url(params)}
-        else if path?
-          endpoints[name] = new constructor(url: mapping.generate_url())
-        else if url?
-          endpoints[name] = new constructor(url: url)
-        else
-          console.error "Unexpected mapping:", name, mapping
-    endpoints
+  spawn: (context) ->
+    context ?= new @context_creator()
+    new Client(@, context, @api)
+
+  class Client
+
+    constructor: (main, @context, api) ->
+      Object.defineProperty @, "main", main
+      @resources = @create_endpoints(api.mappings)
+
+    spawn: (context) ->
+      @main.spawn(context)
+
+
+
+
+
+    # Create resource instances and constructor-helpers using the URLs supplied
+    # in the API mappings.
+    create_endpoints: (mappings) ->
+      endpoints = {}
+      for name, mapping of mappings
+        do (name, mapping) =>
+          {url, query, path, template} = mapping
+          constructor = mapping.constructor
+          if template? || query?
+            endpoints[name] = (params={}) ->
+              new constructor {url: mapping.generate_url(params)}
+          else if path?
+            endpoints[name] = new constructor(url: mapping.generate_url())
+          else if url?
+            endpoints[name] = new constructor(url: url)
+          else
+            console.error "Unexpected mapping:", name, mapping
+      endpoints
 
   create_resource_constructors: (definitions, mappings) ->
     constructors = {}
