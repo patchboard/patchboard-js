@@ -34,8 +34,7 @@ module.exports = class Action
     headers
 
 
-  create_request: (url, args...) ->
-    resource = @
+  create_request: (resource, url, args...) ->
     options = @process_args(args)
     request =
       url: url
@@ -49,13 +48,13 @@ module.exports = class Action
       request.headers[key] = value
 
     auth_type = @definition.request?.authorization
-    if auth_type? && @client.authorizer?
-      credential = @client.authorizer(auth_type, @name)
+    if auth_type? && @client.context.authorizer?
+      credential = @client.context.authorizer(schemes, @name)
       request.headers["Authorization"] = "#{auth_type} #{credential}"
 
     request
 
-  request: (url, args...) ->
+  request: (resource, url, args...) ->
     events = new Evie()
     [_args..., callback] = args
     if typeof(callback) == "function"
@@ -68,7 +67,7 @@ module.exports = class Action
       callback = undefined
 
     try
-      options = @create_request(url, args...)
+      options = @create_request(resource, url, args...)
     catch error
       callback?(error)
       events.emit "error", error

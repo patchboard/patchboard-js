@@ -118,7 +118,7 @@ module.exports = class Patchboard
       do (name, def) ->
         action = constructor.prototype._actions[name] = new Action(client, name, def)
         constructor.prototype[name] = (args...) ->
-          action.request(@url, args...)
+          action.request(@, @url, args...)
 
     # Mix in default resource methods
     for name, method of @resource_methods
