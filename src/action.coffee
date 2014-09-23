@@ -96,8 +96,6 @@ module.exports = class Action
           resource = @api.decorate(@response_schema, response.data)
           resource.response = response
 
-          # For backwards compatibility.  Removable when we bump the
-          # minor version from 0.4 to 0.5.
           resource.resource = resource
 
           callback?(null, resource)
