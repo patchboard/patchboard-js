@@ -47,10 +47,15 @@ module.exports = class Action
     for key, value of @_base_headers
       request.headers[key] = value
 
-    auth_type = @definition.request?.authorization
-    if auth_type? && @client.context.authorizer?
-      credential = @client.context.authorizer(schemes, @name)
-      request.headers["Authorization"] = "#{auth_type} #{credential}"
+    schemes = @definition.request?.authorization
+    if schemes?.constructor == String
+      schemes = [schemes]
+
+    if schemes? && @client.context.authorizer?
+      result = @client.context.authorizer(schemes, @name)
+      if result?
+        {scheme, credential} = result
+        request.headers["Authorization"] = "#{scheme} #{credential}"
 
     request
 
