@@ -27,19 +27,19 @@ Testify.test "Action", (context) ->
 
     context.test "simple", ->
       action = new Action(client, "get", api.resources.user.actions.get)
-      request = action.create_request("http://somewhere.com/")
+      request = action.create_request({}, "http://somewhere.com/")
       assert.keys request, ["url", "method", "headers"]
 
     context.test "with content", ->
       action = new Action(client, "update", api.resources.user.actions.update)
-      request = action.create_request "http://somewhere.com/", {foo: "bar"}
+      request = action.create_request {}, "http://somewhere.com/", {foo: "bar"}
 
       assert.keys request, ["body", "url", "method", "headers"]
       assert.equal request.body, JSON.stringify(foo: "bar")
 
     context.test "with body", ->
       action = new Action(client, "update", api.resources.user.actions.update)
-      request = action.create_request "http://somewhere.com/", "string body"
+      request = action.create_request {}, "http://somewhere.com/", "string body"
 
       assert.keys request, ["body", "url", "method", "headers"]
       assert.equal request.body, "string body"

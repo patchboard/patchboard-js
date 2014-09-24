@@ -35,14 +35,13 @@ module.exports = class Patchboard
 
   constructor: (api, @options={}) ->
     {@authorizer, context} = @options
-    @context_creator = context
+    @context_creator = context || Object
     @api = new API(api)
 
     @create_resource_constructors(@api.resources, @api.mappings)
     client = @spawn()
     @resources = client.resources
     @context = client.context
-    #@resources = @create_endpoints(@api.mappings)
 
   spawn: (context) ->
     context ?= new @context_creator()
