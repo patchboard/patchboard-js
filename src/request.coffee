@@ -23,7 +23,12 @@ module.exports = class Request extends Evie
     # TODO: allow query params as object in options
     {protocol, hostname, port, path} = URL.parse @url
 
-    client = (if protocol is "http:" then http else https)
+    if protocol == "http:"
+      client = http
+      port ?= 80
+    else
+      client = https
+      port ?= 443
 
     parameters =
       host: hostname
