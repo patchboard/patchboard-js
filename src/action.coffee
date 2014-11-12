@@ -53,7 +53,7 @@ module.exports = class Action
       schemes = [schemes]
 
     if schemes? && context.authorizer?
-      result = context.authorizer(schemes, resource, @name)
+      result = context.authorizer(schemes, resource, @name, request)
       if result?
         {scheme, credential} = result
         request.headers["Authorization"] = "#{scheme} #{credential}"
