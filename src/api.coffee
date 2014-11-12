@@ -16,7 +16,7 @@ module.exports = class API
     @schema_manager = new SchemaManager(@schemas...)
 
 
-  decorate: (schema, data) ->
+  decorate: (context, schema, data) ->
     # Determine the resource by following the schema "name" to the mappings,
     # which define the resource names.
     if (name = schema.id?.split("#")[1])?
@@ -33,19 +33,19 @@ module.exports = class API
           data = (params) ->
             if _data.url?
               params.url = _data.url
-            new constructor {url: mapping.generate_url(params)}
+            new constructor context, {url: mapping.generate_url(params)}
 
         else
-          data = new constructor(_data)
-    return @_decorate(schema, data) || data
+          data = new constructor context, _data
+    return @_decorate(context, schema, data) || data
 
 
-  _decorate: (schema, data) ->
+  _decorate: (context, schema, data) ->
     if !schema? || !data?
       return
     if ref = schema.$ref
       if (schema = @schema_manager.find(ref))?
-        @decorate(schema, data)
+        @decorate(context, schema, data)
       else
         console.error "Can't find ref:", ref
         data
@@ -53,7 +53,7 @@ module.exports = class API
       if schema.type == "array"
         if schema.items?
           for item, i in data
-            if (result = @decorate(schema.items, item))?
+            if (result = @decorate(context, schema.items, item))?
               data[i] = result
       else
         switch schema.type
@@ -62,13 +62,13 @@ module.exports = class API
           else
             # Declared properties
             for key, value of schema.properties
-              if (result = @decorate(value, data[key]))?
+              if (result = @decorate(context, value, data[key]))?
                 data[key] = result
             # Default for undeclared properties
             if addprop = schema.additionalProperties
               for key, value of data
                 unless schema.properties?[key]
-                  data[key] = @decorate(addprop, value)
+                  data[key] = @decorate(context, addprop, value)
             return data
 
 
