@@ -51,7 +51,7 @@ module.exports = class Patchboard
 
     constructor: (main, @context, api) ->
       Object.defineProperty @, "main", main
-      @resources = @create_endpoints(api.mappings)
+      @resources = @create_endpoints(@context, api.mappings)
 
     spawn: (context) ->
       @main.spawn(context)
@@ -62,7 +62,7 @@ module.exports = class Patchboard
 
     # Create resource instances and constructor-helpers using the URLs supplied
     # in the API mappings.
-    create_endpoints: (mappings) ->
+    create_endpoints: (context, mappings) ->
       endpoints = {}
       for name, mapping of mappings
         do (name, mapping) =>
@@ -70,11 +70,11 @@ module.exports = class Patchboard
           constructor = mapping.constructor
           if template? || query?
             endpoints[name] = (params={}) ->
-              new constructor {url: mapping.generate_url(params)}
+              new constructor context, {url: mapping.generate_url(params)}
           else if path?
-            endpoints[name] = new constructor(url: mapping.generate_url())
+            endpoints[name] = new constructor context, url: mapping.generate_url()
           else if url?
-            endpoints[name] = new constructor(url: url)
+            endpoints[name] = new constructor context, url: url
           else
             console.error "Unexpected mapping:", name, mapping
       endpoints
@@ -96,7 +96,7 @@ module.exports = class Patchboard
 
   resource_constructor: ({mapping, definition}) ->
     client = @
-    constructor = (data={}) ->
+    constructor = (@context, data={}) ->
       if data?.constructor == String
         # for cases like: resource("http://something.com/foo")
         @url = data

@@ -35,6 +35,7 @@ module.exports = class Action
 
 
   create_request: (resource, url, args...) ->
+    {context} = resource
     options = @process_args(args)
     request =
       url: url
@@ -51,8 +52,8 @@ module.exports = class Action
     if schemes?.constructor == String
       schemes = [schemes]
 
-    if schemes? && @client.context.authorizer?
-      result = @client.context.authorizer(schemes, resource, @name)
+    if schemes? && context.authorizer?
+      result = context.authorizer(schemes, resource, @name)
       if result?
         {scheme, credential} = result
         request.headers["Authorization"] = "#{scheme} #{credential}"
@@ -96,7 +97,7 @@ module.exports = class Action
           catch error
             error = new Error "Unparseable response body"
             return
-          resource = @api.decorate(@response_schema, response.data)
+          resource = @api.decorate(resource.context, @response_schema, response.data)
           Object.defineProperty resource, "response",
             value: response
             enumerable: false
