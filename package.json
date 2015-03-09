@@ -7,9 +7,11 @@
     "type": "git",
     "url": "git://github.com/automatthew/patchboard-js.git"
   },
-  "main": "./src/client.coffee",
+  "main": "./lib/client.js",
+  "prepublish": "coffee -o lib/ -c src/*.*coffee",
   "files": [
-    "src/"
+    "src/",
+    "lib/"
   ],
   "dependencies": {
     "jsck": "~0.1.4",
