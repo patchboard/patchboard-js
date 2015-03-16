@@ -128,10 +128,10 @@ API.Mapping = class Mapping
       for key in keys
         schema = query[key]
         if (string = params[key])?
-          parts.push "#{key}=#{string}"
+          parts.push "#{encodeURIComponent(key)}=#{encodeURIComponent(string)}"
       if parts.length > 0
         query_string = "?#{parts.join('&')}"
       else
         query_string = ""
 
-    encodeURI(url + path + query_string)
+    encodeURI(url + path) + query_string
