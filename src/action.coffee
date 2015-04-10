@@ -1,6 +1,6 @@
 Request = require "./request"
 {type} = require "fairmont"
-{Evie} = require "evie"
+{EventEmitter} = require "events"
 
 module.exports = class Action
 
@@ -61,7 +61,7 @@ module.exports = class Action
     request
 
   request: (resource, url, args...) ->
-    events = new Evie()
+    events = new EventEmitter()
     [_args..., callback] = args
     if typeof(callback) == "function"
       args = _args

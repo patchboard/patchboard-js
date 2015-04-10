@@ -6,14 +6,14 @@ try
 catch error
   zlib = null
 
-{Evie} = require "evie"
+{EventEmitter} = require "events"
 
 corsetCase = (string) ->
   string.toLowerCase()
     .replace("_", "-")
     .replace /(^|-)(\w)/g, (s) -> s.toUpperCase()
 
-module.exports = class Request extends Evie
+module.exports = class Request extends EventEmitter
 
   constructor: (options, handler) ->
     {@url, @method, @headers, @body, timeout, @redirects} = options
