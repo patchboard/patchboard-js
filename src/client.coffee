@@ -1,153 +1,334 @@
-Request = require "./request"
-API = require "./api"
-Action = require("./action")
+merge = (a, b) ->
+  for own key, value of b
+    a[key] = value
+  a
 
-module.exports = class Patchboard
-  @Request = Request
+extend = (child, parent) ->
+  ctor = ->
+    @constructor = child
+    return
 
-  @discover: (args...) ->
-    if args.length == 2
-      [url, callback] = args
-      options = {}
-    else if args.length == 3
-      [url, options, callback] = args
+  merge child, parent
 
-    if url.constructor != String
-      throw new Error("Discovery URL must be a string")
+  ctor.prototype = parent.prototype
+  child.prototype = new ctor
+  child.__super__ = parent.prototype
+  child
 
-    req =
-      url: url
-      method: "GET"
-      headers:
-        "Accept": "application/json"
+hiddenProperty = (object, name, value) ->
+  Object.defineProperty object, name, { value, enumerable: false }
 
-    new Request req, (error, response) =>
-      if error?
+constructorCase = (string) ->
+  camel = camelCase(string)
+  camel[0].toUpperCase() + camel.slice(1)
+  
+
+camelCase = (string) ->
+  string.replace /(\_[a-z])/g, (match) ->
+    match.toUpperCase().replace('_', '')
+  
+querify = (params) ->
+  # TODO: uri encoding
+  a = ([key, value].join("=") for key, value of params)
+  a.join("&")
+
+curlify = (request) ->
+  throw new Error "Unimplemented"
+
+
+callbackify = (fn) ->
+  arity = fn.prototype.length
+  (args...) ->
+    callback = null
+    if arity < args.length
+      [args..., callback] = args
+
+    promise = fn(args...)
+    if callback
+      promise
+      .then (result) ->
+        callback null, result
+      .catch (error) ->
         callback error
-      else
-        if response.data?
-          client = new @(response.data, options)
-          callback null, client
-        else
-          callback new Error "Unparseable response body"
+    else
+      return promise
 
-
-
-  constructor: (api, @options={}) ->
-    {@authorizer, context} = @options
-    @context_creator = context || Object
-    @api = new API(api)
-
-    @create_resource_constructors(@api.resources, @api.mappings)
-    client = @spawn()
-    @resources = client.resources
-    @context = client.context
-
-  spawn: (context) ->
-    context ?= new @context_creator()
-    new Client(@, context, @api)
+module.exports = ({httpAdapter, JSCK}) ->
 
   class Client
 
-    constructor: (main, @context, api) ->
-      Object.defineProperty @, "main", main
-      @resources = @create_endpoints(@context, api.mappings)
-
-    spawn: (context) ->
-      @main.spawn(context)
-
-
-
-
-
-    # Create resource instances and constructor-helpers using the URLs supplied
-    # in the API mappings.
-    create_endpoints: (context, mappings) ->
-      endpoints = {}
-      for name, mapping of mappings
-        do (name, mapping) =>
-          {url, query, path, template} = mapping
-          constructor = mapping.constructor
-          if template? || query?
-            endpoints[name] = (params={}) ->
-              new constructor context, {url: mapping.generate_url(params)}
-          else if path?
-            endpoints[name] = new constructor context, url: mapping.generate_url()
-          else if url?
-            endpoints[name] = new constructor context, url: url
+    @discover: (url, options={}) ->
+      headers = merge {"Accept": "application/json"}, options.headers
+      httpAdapter {url, method: "GET", headers}
+        .then (response) ->
+          {status, data} = response
+          if status == 200
+            new Client data, options
           else
-            console.error "Unexpected mapping:", name, mapping
-      endpoints
+            throw new Error "Unexpected response code #{status}"
 
-  create_resource_constructors: (definitions, mappings) ->
-    constructors = {}
 
-    for name, mapping of mappings
-      definition = mapping.resource
-      constructor = @resource_constructor({mapping, definition})
-      mapping.constructor = constructor
-      constructors[name] = constructor
 
-      if definition.aliases?
-        for alias in definition.aliases
-          constructors[alias] = constructor
+    constructor: (@api, @options) ->
+      @jsck = new JSCK.draft4(@api.schemas)
+      @defaultHeaders = @options.headers || {}
+      @endpoints = {}
+      @constructors = {}
+      defineConstructors @
+      defineEndpoints @
 
-    constructors
+    updateDefaultHeaders: (headers) ->
+      for name, value of headers
+        @setDefaultHeader(name, value)
 
-  resource_constructor: ({mapping, definition}) ->
-    client = @
-    constructor = (@context, data={}) ->
-      if data?.constructor == String
-        # for cases like: resource("http://something.com/foo")
-        @url = data
+    setDefaultHeaders: (headers) ->
+      @defaultHeaders = headers
+
+    setDefaultHeader: (name, value) ->
+      @defaultHeaders[name] = value
+
+    makeResourceCreator: (endpointName, baseURL) ->
+      mapper = @endpoints[endpointName]
+      creator = (params) ->
+        constructor = mapper params
+        if !constructor?
+          throw new Error "Invalid query params for this endpoint"
+        else
+          if params?
+            url = baseURL + "?" + querify(params)
+          else
+            url = baseURL
+          new constructor {url}
+
+      if (base = mapper.base)?
+        creator.base = new base {url: baseURL}
+        for name, method of base.prototype.actions
+          do (name, method) ->
+            creator[name] = (content, options) ->
+              creator.base[name](content, options)
+
+      return creator
+
+
+    decorate: (schema, data) ->
+      if (resource = schema.resource)?
+        constructor = @constructors[resource]
+        data = new constructor {data}
+      else if (endpoint = schema.endpoint)?
+        data = @makeResourceCreator endpoint, data.url
+
+      return @_decorate schema, data
+
+    _decorate: (schema, data) ->
+      return unless schema? && data?
+      if (ref = schema.$ref)?
+        if (_schema = @jsck.find ref)?
+          return @decorate(_schema, data)
+        else
+          console.error "Can't find schema.$ref: #{ref}"
+          return data
       else
+        if schema.type == "array" && schema.items?
+          for item, i in data
+            if (result = @decorate schema.items, item)?
+              data[i] = result
+        else
+          if (properties = schema.properties)? && typeof(data) == "object"
+            for key, value of properties
+              if (result = @decorate value, data[key])?
+                data[key] = result
+
+          if (additionalProperties = schema.additionalProperties)?
+            schema.properties ||= {}
+            for key, value of data
+              if !schema.properties[key]?
+                if (result = @decorate additionalProperties, value)?
+                  data[key] = result
+
+          return data
+
+
+
+  defineConstructors = (client) ->
+    {api} = client
+    {resources} = api
+
+    for name, definition of resources
+      constructorName = constructorCase name
+      fndef = """
+        return function #{constructorName} (options) {
+          #{constructorName}.__super__.constructor.call(this, options)
+        }
+      """
+      constructor = new Function(fndef)()
+      extend(constructor, Resource)
+      constructor.setup(definition)
+      constructor.register(client, name)
+
+
+  defineEndpoints = (client) ->
+    {api} = client
+    {endpoints} = api
+    for name, definition of endpoints
+      do (name, definition) ->
+        endpoint = new Endpoint name, definition
+        client.endpoints[name] = (params) ->
+          resourceName = endpoint.map(params)
+          client.constructors[resourceName]
+
+        if (base = endpoint.base)?
+          client.endpoints[name].base = client.constructors[base]
+
+        if (url = definition.url)?
+          client[name] = client.makeResourceCreator name, url
+
+  class Endpoint
+    constructor: (@name, definition) ->
+      @mappings = []
+      @resources = {}
+      if definition.mappings?
+        for def in definition.mappings
+          mapping = new Mapping def
+          @mappings.push mapping
+          if mapping.query == false
+            @base = def.resource
+      else if definition.resource
+        @resource = definition.resource
+      else
+        error = new Error "Invalid endpoint definition for #{@name}"
+        error.endpoint = definition
+
+    map: (params) ->
+      return @resource if @resource
+      matches = []
+      for mapping in @mappings
+        if mapping.match(params)
+          matches.push mapping.resource
+      # last mapping is best mapping, for now
+      [_..., match] = matches
+      return match
+
+
+  class Mapping
+    constructor: (definition) ->
+      {@resource, @query} = definition
+      if @query != false
+        @validator = new JSCK.draft4 {
+          required: @query.required
+          properties: @query.parameters
+          additionalProperties: false
+        }
+
+
+    match: (params) ->
+      if @query == false
+        if params
+          false
+        else
+          true
+      else
+        if params
+          {valid} = @validator.validate(params)
+          return valid
+        else
+          if @query.required
+            false
+          else
+            true
+
+
+  class Resource
+
+    @actions: {}
+
+    @register: (@client, name) ->
+      {@api} = @client
+      @client.constructors[name] = @
+      @client[@name] = @
+      @resource_name = name
+
+    @setup: (definition) ->
+      hiddenProperty @prototype, "actions", definition.actions
+      for name, action of definition.actions
+        @actions[name] = action
+        @defineAction @prototype, name, action
+
+    @defineAction: (prototype, name, definition) ->
+      hiddenProperty prototype, name, (input, options) ->
+        @actionRequest definition, input, options
+
+
+    @responseHandler: (action) ->
+      (response) =>
+        {headers, status, data} = response
+        if action.response.status.indexOf(status) == -1
+          error = new Error "Unexpected response code: #{status}"
+          error.response = response
+          throw error
+
+        type = headers["content-type"]
+        if !type? && action.response.type?
+          type = action.response.type[0]
+
+        if !type?
+          return merge(data, {response})
+
+        if (schema = @client.jsck.find {mediaType: type})?
+          if @client.options.validateResponses == true
+            validator = @client.jsck.validator {mediaType: type}
+            report = validator.validate(data)
+            if report.valid != true
+              error = new Error "Response content did not match the schema"
+              error.reason = report.errors
+              throw error
+
+        data = @client.decorate schema, data
+        hiddenProperty data, "response", response
+        return data
+
+
+
+    constructor: ({url, data}) ->
+      if url?
+        @url = url
+      else if data
+        # TODO: use Object.defineProperties to set these?
         for key, value of data
           @[key] = value
-      return @
-
-    constructor.prototype._actions = {}
-    constructor.prototype.resource_type = definition.name
-
-    # Hide the Patchboard client from such things as console.log
-    Object.defineProperty constructor.prototype, "patchboard_client",
-      value: @
-      enumerable: false
-
-    for name, def of definition.actions
-      do (name, def) ->
-        action = constructor.prototype._actions[name] = new Action(client, name, def)
-        constructor.prototype[name] = (args...) ->
-          action.request(@, @url, args...)
-
-    # Mix in default resource methods
-    for name, method of @resource_methods
-      constructor.prototype[name] = method
-
-    constructor
+      else
+        throw new Error "Resource needs either .url or .data"
 
 
-  resource_methods:
+  hiddenProperty Resource.prototype, "actionRequest",
+    (action, input, options={}) ->
+      request = @prepare(action, input, options)
+      httpAdapter(request)
+        .then @constructor.responseHandler(action)
+        .catch (error) ->
+          if error.status?
+            throw new Error "Unexpected response code: #{error.status}"
+          else
+            throw error
 
-    # returns a string that (when logged to console) can be used as the
-    # curl command that exactly represents this action.
-    curl: (name, args...) ->
-      action = @_actions[name]
-      request = action.create_request(@url, args...)
+  hiddenProperty Resource.prototype, "prepare",
+    (action, content, options={}) ->
+      url = @url
+      method = action.request.method
+      headers = {}
+      merge headers, @constructor.client.defaultHeaders
 
-      {method, url, headers, body} = request
-      agent = headers["User-Agent"]
-      command = []
-      command.push "curl -v -A '#{agent}' -X #{method}"
-      for header, value of headers when header != "User-Agent"
-        command.push "  -H '#{header}: #{value}'"
+      if (types = action.request.type)?
+        headers["Content-Type"] ||= types[0]
+        # FIXME: only do this if the Content-Type indicates JSON
+        if typeof(input) != "string"
+          content = JSON.stringify(content)
+      
+      if (types = action.response.type)?
+        headers["Accept"] ||= types[0]
 
-      if body?
-        command.push "  -d #{JSON.stringify(body)}"
-      command.push "  #{url}"
-      command.join(" \\\n")
-
-  # end resource_methods
-
-
-
+      merge headers, options.headers
+      return { url, method, headers, data: content || "" }
+        
+  return Client
+  
 
